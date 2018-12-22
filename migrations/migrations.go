@@ -12,6 +12,7 @@ func init() {
 	DatabaseMigrations = map[int]manageddb.DBMigration{
 		1: manageddb.DBMigration{Up: migration1up, Down: migration1down},
 		2: manageddb.DBMigration{Up: migration2up, Down: migration2down},
+		3: manageddb.DBMigration{Up: migration3up, Down: migration3down},
 	}
 }
 
@@ -40,6 +41,22 @@ func migration2up(db *sql.DB) error {
 
 func migration2down(db *sql.DB) error {
 	_, err := db.Exec("drop table posts")
+
+	return err
+}
+
+func migration3up(db *sql.DB) error {
+	_, err := db.Exec(`create table assets (name text primary key,
+		mimeType text,
+		content blob,
+		added integer,
+		modified integer)`)
+
+	return err
+}
+
+func migration3down(db *sql.DB) error {
+	_, err := db.Exec("drop table assets")
 
 	return err
 }

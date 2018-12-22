@@ -16,13 +16,15 @@ type ManagedDB struct {
 	dbLock           *sync.Mutex
 	migrations       map[int]DBMigration
 	currentMigration int
+	silent           bool
 }
 
 // NewManagedDB creates and initializes a new ManagedDB with the given file path,
 // datatbase driver and migrations to apply to the db.
-func NewManagedDB(dbPath string, driver string, migrations map[int]DBMigration) *ManagedDB {
+func NewManagedDB(dbPath string, driver string, migrations map[int]DBMigration, silent bool) *ManagedDB {
 	newDB := new(ManagedDB)
 	var err error
+	newDB.silent = silent
 
 	newDB.DB, err = sql.Open(driver, dbPath)
 	if err != nil {
@@ -33,7 +35,10 @@ func NewManagedDB(dbPath string, driver string, migrations map[int]DBMigration) 
 
 	// Figure out what the current migration is
 	newDB.currentMigration = newDB.getCurrentMigration()
-	log.Printf("Current migration level: %d.", newDB.currentMigration)
+	if !silent {
+		log.Printf("Current migration level: %d.", newDB.currentMigration)
+	}
+
 	newDB.migrations = migrations
 
 	newDB.databaseMigrate(-1)
@@ -98,9 +103,13 @@ func (mdb ManagedDB) databaseMigrate(toMigration int) {
 			}
 		}
 
-		log.Printf("Migrated up to level %d.", mdb.currentMigration)
+		if !mdb.silent {
+			log.Printf("Migrated up to level %d.", mdb.currentMigration)
+		}
 	} else {
-		log.Printf("No migrations to perform.")
+		if !mdb.silent {
+			log.Printf("No migrations to perform.")
+		}
 	}
 }
 

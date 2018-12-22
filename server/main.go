@@ -12,13 +12,14 @@ func main() {
 		panic("environment variable GROG_DATABASE_FILE must be set")
 	}
 
-	db := manageddb.NewManagedDB(dbFilename, "sqlite3", databaseMigrations)
+	db := manageddb.NewManagedDB(dbFilename, "sqlite3", databaseMigrations, false)
 
 	// Set up request routing
 	r := mux.NewRouter()
 
 	r.HandleFunc("/client", client)
 	r.HandleFunc("/robots.txt", robots)
+	r.HandleFunc("/post/{id}", showPost)
 	r.HandleFunc("/", client)
 	http.Handle("/", r)
 
@@ -43,4 +44,18 @@ func main() {
 	if httpErr != nil {
 		log.Fatalf("error starting web server: %v\n", httpErr)
 	}
+}
+
+func showPost(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	postId, parseErr := strconv.Atoi(vars["id"])
+
+	if parseErr != nil {
+
+	}
+
+}
+
+func dbFileReader(contentid string) (byte[], error) {
+	
 }
