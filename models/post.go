@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Post models an individual unit of blog content
 type Post struct {
 	model   *GrogModel
 	ID      int64
@@ -16,6 +17,7 @@ type Post struct {
 	Edited  NullTime
 }
 
+// NewPost creates a new Post object
 func (model *GrogModel) NewPost(title string, summary string, body string) *Post {
 
 	newPost := new(Post)
@@ -28,6 +30,7 @@ func (model *GrogModel) NewPost(title string, summary string, body string) *Post
 	return newPost
 }
 
+// GetPost retrieves the Post object identified by the given id from the database
 func (model *GrogModel) GetPost(id int64) (*Post, error) {
 	var foundPost *Post
 	var err error
@@ -54,6 +57,7 @@ func (model *GrogModel) GetPost(id int64) (*Post, error) {
 	return foundPost, err
 }
 
+// Save writes the Post object to the database
 func (post *Post) Save() error {
 	var saveError error
 
