@@ -1,2 +1,4 @@
 *.db
 *~
+server/server
+server/localcert
