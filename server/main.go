@@ -29,10 +29,7 @@ func main() {
 	// Set up request routing
 	r := mux.NewRouter()
 
-	//r.HandleFunc("/client", client)
-	//r.HandleFunc("/robots.txt", robots)
 	r.HandleFunc("/post/{id}", postController)
-	//r.HandleFunc("/", client)
 	http.Handle("/", r)
 
 	servingAddress := os.Getenv("GROG_SERVER_ADDRESS")
@@ -50,7 +47,7 @@ func main() {
 		panic("enviornment variable GROG_SERVER_KEYPATH must be set")
 	}
 
-	//go http.ListenAndServe(":80", http.HandlerFunc(redirect))
+	go http.ListenAndServe(":8081", http.HandlerFunc(redirect))
 
 	httpErr := http.ListenAndServeTLS(servingAddress, certPath, keyPath, nil)
 	if httpErr != nil {
@@ -89,4 +86,16 @@ func dbFileReader(contentid string) (data []byte, err error) {
 	}
 
 	return
+}
+
+func redirect(w http.ResponseWriter, req *http.Request) {
+	// remove/add not default ports from req.Host
+	target := "https://" + req.Host + req.URL.Path
+
+	if len(req.URL.RawQuery) > 0 {
+		target += "?" + req.URL.RawQuery
+	}
+
+	log.Printf("redirect to: %s", target)
+	http.Redirect(w, req, target, http.StatusTemporaryRedirect)
 }
