@@ -6,17 +6,28 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/adamcrossland/grog/migrations"
 
+	"bitbucket.org/adamcrossland/mtemplate"
 	"github.com/adamcrossland/grog/manageddb"
 	"github.com/adamcrossland/grog/models"
 	"github.com/gorilla/mux"
 )
 
 var grog *model.GrogModel
+var noCaching bool = false
 
 func main() {
+	argsWithoutProg := os.Args[1:]
+	for i := 0; i < len(argsWithoutProg); i++ {
+		switch strings.ToLower(argsWithoutProg[i]) {
+		case "--no-cache":
+			noCaching = true
+		}
+	}
+
 	// Set up backing database
 	dbFilename := os.Getenv("GROG_DATABASE_FILE")
 	if dbFilename == "" {
@@ -25,6 +36,9 @@ func main() {
 
 	db := manageddb.NewManagedDB(dbFilename, "sqlite3", migrations.DatabaseMigrations, false)
 	grog = model.NewModel(db)
+
+	// Set up templating engine to read files fromthe database
+	mtemplate.TemplateSourceReader = dbFileReader
 
 	// Set up request routing
 	r := mux.NewRouter()
@@ -72,17 +86,32 @@ func postController(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Fprintf(w, "Title: %s\n\nSummary: %s\n\n%s", post.Title, post.Summary, string(post.Body))
+		if noCaching {
+			mtemplate.ClearFromCache("post.html")
+			mtemplate.ClearFromCache("base.html")
+		}
+
+		renderErr := mtemplate.RenderFile("post.html", w, post)
+		if renderErr != nil {
+			log.Printf("Error rendering post template: %v", renderErr)
+		}
+
+		//fmt.Fprintf(w, "Title: %s\n\nSummary: %s\n\n%s", post.Title, post.Summary, string(post.Body))
 	}
 
 	return
 }
 
 func dbFileReader(contentid string) (data []byte, err error) {
+	log.Printf("dbFileReader: serving file %s", contentid)
 	var content *model.Asset
 	content, err = grog.GetAsset(contentid)
 	if err == nil {
+		log.Printf("%s has %d bytes\n", contentid, len(content.Content))
+		data = make([]byte, len(content.Content))
 		copy(data, content.Content)
+	} else {
+		log.Printf("Error while retrieving asset %s: %v\n", contentid, err)
 	}
 
 	return
