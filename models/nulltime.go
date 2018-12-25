@@ -21,7 +21,11 @@ func (dbtime *NullTime) Set(timeVal time.Time) {
 func (dbtime NullTime) Unix() int64 {
 	if !dbtime.IsNull() {
 		return dbtime.Time.Unix()
-	} else {
-		return 0
 	}
+
+	return 0
+}
+
+func (dbtime NullTime) String() string {
+	return dbtime.Time.String()
 }
