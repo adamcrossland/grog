@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/adamcrossland/grog/migrations"
@@ -17,7 +16,7 @@ import (
 )
 
 var grog *model.GrogModel
-var noCaching bool = false
+var noCaching = false
 
 func main() {
 	argsWithoutProg := os.Args[1:]
@@ -70,80 +69,16 @@ func main() {
 	}
 }
 
-func postController(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+func redirect(w http.ResponseWriter, req *http.Request) {
+	// remove/add not default ports from req.Host
+	target := "https://" + req.Host + req.URL.Path
 
-	switch r.Method {
-	case "GET":
-		postID, parseErr := strconv.Atoi(vars["id"])
-		if parseErr != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "post %s does not exist", postID)
-		}
-
-		post, postErr := grog.GetPost(int64(postID))
-		if postErr != nil {
-			log.Printf("Error retrieving post(%d): %v", postID, postErr)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		if post == nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		if noCaching {
-			mtemplate.ClearFromCache("post.html")
-			mtemplate.ClearFromCache("base.html")
-		}
-
-		renderErr := mtemplate.RenderFile("post.html", w, post)
-		if renderErr != nil {
-			log.Printf("Error rendering post template: %v", renderErr)
-		}
-
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
+	if len(req.URL.RawQuery) > 0 {
+		target += "?" + req.URL.RawQuery
 	}
 
-	return
-}
-
-func assetController(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	switch r.Method {
-	case "GET":
-		assetID := vars["id"]
-
-		asset, assetErr := grog.GetAsset(assetID)
-		if assetErr != nil {
-			log.Printf("Error retrieving asset(%s): %v", assetID, assetErr)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		if asset == nil || asset.ServeExternal == false {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		w.Header().Set("Content-type", asset.MimeType)
-		w.Header().Set("Content-length", strconv.Itoa(len(asset.Content)))
-
-		switch asset.MimeType {
-		case "text/css", "text/html", "text/plain":
-			fmt.Fprintf(w, "%s", string(asset.Content))
-		default:
-			w.Write(asset.Content)
-		}
-
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
-
-	return
+	log.Printf("redirect to: %s", target)
+	http.Redirect(w, req, target, http.StatusTemporaryRedirect)
 }
 
 func dbFileReader(contentid string) (data []byte, err error) {
@@ -157,16 +92,4 @@ func dbFileReader(contentid string) (data []byte, err error) {
 	}
 
 	return
-}
-
-func redirect(w http.ResponseWriter, req *http.Request) {
-	// remove/add not default ports from req.Host
-	target := "https://" + req.Host + req.URL.Path
-
-	if len(req.URL.RawQuery) > 0 {
-		target += "?" + req.URL.RawQuery
-	}
-
-	log.Printf("redirect to: %s", target)
-	http.Redirect(w, req, target, http.StatusTemporaryRedirect)
 }
