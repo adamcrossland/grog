@@ -130,12 +130,13 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-type", asset.MimeType)
+		w.Header().Set("Content-length", strconv.Itoa(len(asset.Content)))
 
 		switch asset.MimeType {
 		case "text/css", "text/html", "text/plain":
 			fmt.Fprintf(w, "%s", string(asset.Content))
 		default:
-			fmt.Fprint(w, asset.Content)
+			w.Write(asset.Content)
 		}
 
 	default:
@@ -146,11 +147,9 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 }
 
 func dbFileReader(contentid string) (data []byte, err error) {
-	log.Printf("dbFileReader: serving file %s", contentid)
 	var content *model.Asset
 	content, err = grog.GetAsset(contentid)
 	if err == nil {
-		log.Printf("%s has %d bytes\n", contentid, len(content.Content))
 		data = make([]byte, len(content.Content))
 		copy(data, content.Content)
 	} else {
