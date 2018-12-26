@@ -49,6 +49,7 @@ func migration3up(db *sql.DB) error {
 	_, err := db.Exec(`create table assets (name text primary key,
 		mimeType text,
 		content blob,
+		serve_external integer,
 		added integer,
 		modified integer)`)
 

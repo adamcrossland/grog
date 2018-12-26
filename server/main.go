@@ -124,7 +124,7 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if asset == nil {
+		if asset == nil || asset.ServeExternal == false {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}

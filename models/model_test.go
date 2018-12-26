@@ -69,6 +69,7 @@ func TestAddAsset(t *testing.T) {
 	testText := "This is a text file."
 	newAsset := model.NewAsset("test.txt", "text/plain")
 	newAsset.Write([]byte(testText))
+	newAsset.ServeExternal = true
 	saveErr := newAsset.Save()
 
 	if saveErr != nil {
@@ -100,6 +101,9 @@ func TestAddAsset(t *testing.T) {
 	if savedAsset.Modified.Unix() != newAsset.Modified.Unix() {
 		t.Fatalf("savedAsset and newAsset had different Modified values (%d) vs (%d)", savedAsset.Modified.Unix(),
 			newAsset.Modified.Unix())
+	}
+	if !savedAsset.ServeExternal {
+		t.Fatalf("savedAsset should have ServeExternal of true but does not.")
 	}
 
 	dbTeardown()

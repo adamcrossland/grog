@@ -8,12 +8,13 @@ import (
 
 // Asset is a file this is or will be stored in the database
 type Asset struct {
-	model    *GrogModel
-	Name     string
-	MimeType string
-	Content  []byte
-	Added    NullTime
-	Modified NullTime
+	model         *GrogModel
+	Name          string
+	MimeType      string
+	Content       []byte
+	ServeExternal bool
+	Added         NullTime
+	Modified      NullTime
 }
 
 // NewAsset creates a new Asset object
@@ -32,15 +33,22 @@ func (model *GrogModel) GetAsset(name string) (*Asset, error) {
 	var foundAsset *Asset
 	var mimeType string
 	var content = make([]byte, 0)
+	var serveExternal int64
 	var added int64
 	var modified int64
 	var err error
 
-	row := model.db.DB.QueryRow("select mimeType, content, added, modified from Assets where name = ?", name)
-	if row.Scan(&mimeType, &content, &added, &modified) != sql.ErrNoRows {
+	row := model.db.DB.QueryRow("select mimeType, content, serve_external, added, modified from Assets where name = ?", name)
+	if row.Scan(&mimeType, &content, &serveExternal, &added, &modified) != sql.ErrNoRows {
 		foundAsset = model.NewAsset(name, mimeType)
 		foundAsset.Content = make([]byte, len(content))
 		copy(foundAsset.Content, content)
+		if serveExternal == 1 {
+			foundAsset.ServeExternal = true
+		} else {
+			foundAsset.ServeExternal = false
+		}
+
 		foundAsset.Added.Set(time.Unix(added, 0))
 		foundAsset.Modified.Set(time.Unix(modified, 0))
 	} else {
@@ -78,9 +86,14 @@ func (asset *Asset) Save() error {
 			asset.Modified.Set(asset.Added.Time)
 		}
 
-		_, err := asset.model.db.DB.Exec(`insert into assets (name, mimeType, content,
-			added, modified) values (?, ?, ?, ?, ?)`,
-			asset.Name, asset.MimeType, asset.Content, asset.Added.Unix(), asset.Modified.Unix())
+		var serveExternalVal int64 = 0
+		if asset.ServeExternal {
+			serveExternalVal = 1
+		}
+
+		_, err := asset.model.db.DB.Exec(`insert into assets (name, mimeType, content, serve_external,
+			added, modified) values (?, ?, ?, ?, ?, ?)`,
+			asset.Name, asset.MimeType, asset.Content, serveExternalVal, asset.Added.Unix(), asset.Modified.Unix())
 
 		saveError = err
 	} else {
