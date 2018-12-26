@@ -44,6 +44,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/post/{id}", postController)
+	r.HandleFunc("/asset/{id}", assetController)
 	http.Handle("/", r)
 
 	servingAddress := os.Getenv("GROG_SERVER_ADDRESS")
@@ -76,13 +77,19 @@ func postController(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		postID, parseErr := strconv.Atoi(vars["id"])
 		if parseErr != nil {
-			// return 400 error here
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "post %s does not exist", postID)
 		}
 
 		post, postErr := grog.GetPost(int64(postID))
 		if postErr != nil {
 			log.Printf("Error retrieving post(%d): %v", postID, postErr)
 			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if post == nil {
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
@@ -96,7 +103,43 @@ func postController(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error rendering post template: %v", renderErr)
 		}
 
-		//fmt.Fprintf(w, "Title: %s\n\nSummary: %s\n\n%s", post.Title, post.Summary, string(post.Body))
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+
+	return
+}
+
+func assetController(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	switch r.Method {
+	case "GET":
+		assetID := vars["id"]
+
+		asset, assetErr := grog.GetAsset(assetID)
+		if assetErr != nil {
+			log.Printf("Error retrieving asset(%s): %v", assetID, assetErr)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if asset == nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-type", asset.MimeType)
+
+		switch asset.MimeType {
+		case "text/css", "text/html", "text/plain":
+			fmt.Fprintf(w, "%s", string(asset.Content))
+		default:
+			fmt.Fprint(w, asset.Content)
+		}
+
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 
 	return
