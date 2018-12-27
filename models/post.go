@@ -3,7 +3,9 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // Post models an individual unit of blog content
@@ -13,16 +15,20 @@ type Post struct {
 	Title   string
 	Summary string
 	Body    string
+	Slug    string
 	Added   NullTime
 	Edited  NullTime
 }
 
 // NewPost creates a new Post object
-func (model *GrogModel) NewPost(title string, summary string, body string) *Post {
+func (model *GrogModel) NewPost(title string, summary string, body string, slug string) *Post {
 
 	newPost := new(Post)
 	newPost.ID = -1 // Not set value
 	newPost.Title = title
+	if len(slug) == 0 {
+		newPost.autoSlug()
+	}
 	newPost.Summary = summary
 	newPost.Body = body
 	newPost.model = model
@@ -37,21 +43,53 @@ func (model *GrogModel) GetPost(id int64) (*Post, error) {
 	var title string
 	var summary string
 	var body string
+	var slug string
 	var added int64
 	var edited int64
 
-	row := model.db.DB.QueryRow("select title, summary, body, added, edited from Posts where id = ?", id)
+	row := model.db.DB.QueryRow("select title, summary, body, slug, added, edited from Posts where id = ?", id)
 
-	if row.Scan(&title, &summary, &body, &added, &edited) != sql.ErrNoRows {
-		foundPost = model.NewPost(title, summary, body)
+	if row.Scan(&title, &summary, &body, &slug, &added, &edited) != sql.ErrNoRows {
+		foundPost = model.NewPost(title, summary, body, slug)
 		foundPost.ID = id
 		foundPost.Title = title
 		foundPost.Summary = summary
 		foundPost.Body = body
+		foundPost.Slug = slug
 		foundPost.Added.Set(time.Unix(added, 0))
 		foundPost.Edited.Set(time.Unix(edited, 0))
 	} else {
 		err = fmt.Errorf("No post with id %d", id)
+	}
+
+	return foundPost, err
+}
+
+// GetPostBySlug returns the Post object with the given slug
+func (model *GrogModel) GetPostBySlug(slugged string) (*Post, error) {
+	var foundPost *Post
+	var err error
+	var id int64
+	var title string
+	var summary string
+	var body string
+	var slug string
+	var added int64
+	var edited int64
+
+	row := model.db.DB.QueryRow("select id, title, summary, body, slug, added, edited from Posts where slug = ?", slugged)
+
+	if row.Scan(&id, &title, &summary, &body, &slug, &added, &edited) != sql.ErrNoRows {
+		foundPost = model.NewPost(title, summary, body, slug)
+		foundPost.ID = id
+		foundPost.Title = title
+		foundPost.Summary = summary
+		foundPost.Body = body
+		foundPost.Slug = slug
+		foundPost.Added.Set(time.Unix(added, 0))
+		foundPost.Edited.Set(time.Unix(edited, 0))
+	} else {
+		err = fmt.Errorf("No post with slug %s", slugged)
 	}
 
 	return foundPost, err
@@ -71,8 +109,8 @@ func (post *Post) Save() error {
 			post.Edited.Set(post.Added.Time)
 		}
 
-		insertResult, err := post.model.db.DB.Exec("insert into posts (title, summary, body, added, edited) values (?, ?, ?, ?, ?)",
-			post.Title, post.Summary, post.Body, post.Added.Unix(), post.Edited.Unix())
+		insertResult, err := post.model.db.DB.Exec("insert into posts (title, summary, body, slug, added, edited) values (?, ?, ?, ?, ?, ?)",
+			post.Title, post.Summary, post.Body, post.Slug, post.Added.Unix(), post.Edited.Unix())
 		if err == nil {
 			post.ID, err = insertResult.LastInsertId()
 		}
@@ -80,8 +118,8 @@ func (post *Post) Save() error {
 		saveError = err
 	} else {
 		// Exists, do update
-		_, err := post.model.db.DB.Exec(`update posts set title = ?, summary = ?, body = ?,
-				added = ?, edited = ? where Id = ?`, post.Title, post.Summary, post.Body,
+		_, err := post.model.db.DB.Exec(`update posts set title = ?, summary = ?, body = ?, slug = ?
+				added = ?, edited = ? where Id = ?`, post.Title, post.Summary, post.Body, post.Slug,
 			post.Added.Unix(), post.Edited.Unix(), post.ID)
 		saveError = err
 	}
@@ -89,6 +127,28 @@ func (post *Post) Save() error {
 	return saveError
 }
 
+// IndexSet return true if the Post object has an ID set rather than the default value
 func (post Post) IndexSet() bool {
 	return post.ID != -1
+}
+
+func (post Post) autoSlug() string {
+	a := strings.ToLower(post.Title)
+	b := make([]rune, len(a))
+	prevSpace := false
+	for _, rune := range a {
+		if unicode.IsSpace(rune) {
+			if !prevSpace {
+				b = append(b, '-')
+				prevSpace = true
+			}
+		} else {
+			prevSpace = false
+			if unicode.IsLower(rune) {
+				b = append(b, rune)
+			}
+		}
+	}
+
+	return string(b)
 }

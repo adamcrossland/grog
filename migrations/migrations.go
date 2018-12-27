@@ -6,6 +6,7 @@ import (
 	"github.com/adamcrossland/grog/manageddb"
 )
 
+// DatabaseMigrations contains all of the database migration changes.
 var DatabaseMigrations map[int]manageddb.DBMigration
 
 func init() {
@@ -13,6 +14,8 @@ func init() {
 		1: manageddb.DBMigration{Up: migration1up, Down: migration1down},
 		2: manageddb.DBMigration{Up: migration2up, Down: migration2down},
 		3: manageddb.DBMigration{Up: migration3up, Down: migration3down},
+		4: manageddb.DBMigration{Up: migration4up, Down: migration4down},
+		5: manageddb.DBMigration{Up: migration5up, Down: migration5down},
 	}
 }
 
@@ -58,6 +61,29 @@ func migration3up(db *sql.DB) error {
 
 func migration3down(db *sql.DB) error {
 	_, err := db.Exec("drop table assets")
+
+	return err
+}
+
+func migration4up(db *sql.DB) error {
+	_, err := db.Exec(`ALTER TABLE "posts" ADD COLUMN slug TEXT`)
+
+	return err
+}
+
+func migration4down(db *sql.DB) error {
+
+	return nil
+}
+
+func migration5up(db *sql.DB) error {
+	_, err := db.Exec(`CREATE INDEX slugindex on posts (slug)`)
+
+	return err
+}
+
+func migration5down(db *sql.DB) error {
+	_, err := db.Exec(`DROP INDEX slugindex on posts`)
 
 	return err
 }
