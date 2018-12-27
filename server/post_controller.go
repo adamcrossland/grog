@@ -23,6 +23,10 @@ func postController(w http.ResponseWriter, r *http.Request) {
 		}
 
 		getPost(w, r, postID)
+	case "PUT":
+		putPost(w, r)
+		// TODO: This must be authenticated and authorized
+
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -69,4 +73,34 @@ func getPost(w http.ResponseWriter, r *http.Request, postID string) {
 		fmt.Fprintf(w, "Error rendering post template: %v", renderErr)
 		log.Printf("Error rendering post template: %v", renderErr)
 	}
+}
+
+func putPost(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+
+	title, titleOK := r.Form["title"]
+	if !titleOK || len(title) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "title must be provided and cannot be empty")
+		return
+	}
+
+	body, bodyOK := r.Form["body"]
+	if !bodyOK || len(body) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "body must be provided and cannot be empty")
+		return
+	}
+
+	summary, _ := r.Form["summary"]
+
+	newlyAdded := grog.NewPost(title[0], summary[0], body[0], "")
+	saveErr := newlyAdded.Save()
+	if saveErr != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "error saving new post: %v", saveErr)
+		log.Printf("error saving new post: %v", saveErr)
+	}
+
+	return
 }

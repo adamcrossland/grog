@@ -27,7 +27,7 @@ func (model *GrogModel) NewPost(title string, summary string, body string, slug 
 	newPost.ID = -1 // Not set value
 	newPost.Title = title
 	if len(slug) == 0 {
-		newPost.autoSlug()
+		newPost.Slug = newPost.autoSlug()
 	}
 	newPost.Summary = summary
 	newPost.Body = body
@@ -134,7 +134,7 @@ func (post Post) IndexSet() bool {
 
 func (post Post) autoSlug() string {
 	a := strings.ToLower(post.Title)
-	b := make([]rune, len(a))
+	b := make([]rune, 0)
 	prevSpace := false
 	for _, rune := range a {
 		if unicode.IsSpace(rune) {

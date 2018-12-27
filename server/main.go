@@ -43,6 +43,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/post/{id}", postController)
+	r.HandleFunc("/post", postController)
 	r.HandleFunc("/asset/{id}", assetController)
 	http.Handle("/", r)
 
