@@ -2,3 +2,5 @@
 *~
 server/server
 server/localcert
+server/templates
+server/env.sh
