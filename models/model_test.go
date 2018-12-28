@@ -22,7 +22,7 @@ func TestAddPost(t *testing.T) {
 	model := NewModel(dbSetup())
 
 	newPost := model.NewPost("Test title", "Automated test post",
-		"This post is created by automted testing and should never survive the testing process")
+		"This post is created by automted testing and should never survive the testing process", "")
 	saveErr := newPost.Save()
 
 	if saveErr != nil {
@@ -104,6 +104,30 @@ func TestAddAsset(t *testing.T) {
 	}
 	if !savedAsset.ServeExternal {
 		t.Fatalf("savedAsset should have ServeExternal of true but does not.")
+	}
+
+	dbTeardown()
+}
+
+func TestPostSlugging(t *testing.T) {
+	model := NewModel(dbSetup())
+
+	testPost1 := model.NewPost("This is a test post", "", "TEST", "")
+
+	if testPost1.Slug != "this-is-a-test-post" {
+		t.Fatalf("testPost1 has incorrect slug %s", testPost1.Slug)
+	}
+
+	testPost2 := model.NewPost("This   is a test   post", "", "TEST", "")
+
+	if testPost2.Slug != "this-is-a-test-post" {
+		t.Fatalf("testPost2 has incorrect slug %s", testPost2.Slug)
+	}
+
+	testPost3 := model.NewPost("This is @a test' post!", "", "TEST", "")
+
+	if testPost3.Slug != "this-is-a-test-post" {
+		t.Fatalf("testPost3 has incorrect slug %s", testPost3.Slug)
 	}
 
 	dbTeardown()
