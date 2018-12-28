@@ -132,3 +132,42 @@ func TestPostSlugging(t *testing.T) {
 
 	dbTeardown()
 }
+
+func TestAddingUser(t *testing.T) {
+	model := NewModel(dbSetup())
+
+	testUser := model.NewUser("testuser@test.com", "Test User")
+	saveErr := testUser.Save()
+
+	if saveErr != nil {
+		t.Fatalf("saving of testUser failed with error: %v", saveErr)
+	}
+
+	if testUser.ID == -1 {
+		t.Fatal("testUser did not receive a valid ID after being saved")
+	}
+
+	foundUser, foundErr := model.GetUser(testUser.ID)
+
+	if foundErr != nil {
+		t.Fatalf("GetUser failed with error: %v", foundErr)
+	}
+
+	if foundUser.ID != testUser.ID {
+		t.Fatalf("testUser.ID (%d) and foundUser.ID (%d) do not match", testUser.ID, foundUser.ID)
+	}
+
+	if foundUser.Email != testUser.Email {
+		t.Fatalf("testUser.Email (%s) and foundUser.Email (%s) do not match", testUser.Email, foundUser.Email)
+	}
+
+	if foundUser.Name != testUser.Name {
+		t.Fatalf("testUser.Name (%s) and foundUser.Name (%s) do not match", testUser.Name, foundUser.Name)
+	}
+
+	if foundUser.Added.Unix() != testUser.Added.Unix() {
+		t.Fatalf("testUser.Added (%d) and foundUser.Added (%d) do not match", testUser.Added.Unix(), foundUser.Added.Unix())
+	}
+
+	dbTeardown()
+}

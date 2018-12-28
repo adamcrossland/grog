@@ -16,6 +16,7 @@ func init() {
 		3: manageddb.DBMigration{Up: migration3up, Down: migration3down},
 		4: manageddb.DBMigration{Up: migration4up, Down: migration4down},
 		5: manageddb.DBMigration{Up: migration5up, Down: migration5down},
+		6: manageddb.DBMigration{Up: migration6up, Down: migration6down},
 	}
 }
 
@@ -84,6 +85,24 @@ func migration5up(db *sql.DB) error {
 
 func migration5down(db *sql.DB) error {
 	_, err := db.Exec(`DROP INDEX slugindex on posts`)
+
+	return err
+}
+
+func migration6up(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE users (
+		ID	INTEGER NOT NULL,
+		Email   TEXT NOT NULL,
+		Name	TEXT NOT NULL,
+		Added	INTEGER NOT NULL,
+		PRIMARY KEY('ID')
+	)`)
+
+	return err
+}
+
+func migration6down(db *sql.DB) error {
+	_, err := db.Exec(`DROP TABLE users`)
 
 	return err
 }
