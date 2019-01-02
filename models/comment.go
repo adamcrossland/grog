@@ -8,12 +8,14 @@ import (
 // Comment contains all of the information associated with a comment
 // on a Post.
 type Comment struct {
-	model   *GrogModel
-	ID      int64
-	Content string
-	Author  int64
-	Added   NullTime
-	Post    int64
+	model       *GrogModel
+	ID          int64
+	Content     string
+	Author      int64
+	Added       NullTime
+	Post        int64
+	AuthorName  string
+	AuthorEmail string
 }
 
 // NewComment creates a new Comment instance
@@ -49,7 +51,10 @@ func (post *Post) AddComment(content string, author User) (*Comment, error) {
 // also available in the Post's Comments property.
 func (post *Post) LoadComments() ([]*Comment, error) {
 
-	rows, err := post.model.db.DB.Query("select id, content, author, post, added from Comments where post = ? order by added", post.ID)
+	rows, err := post.model.db.DB.Query(`
+		select comments.ID, Content, Author, comments.Added, comments.post, users.email, users.Name
+		from Comments inner join users on comments.Author = users.ID where Post=?
+		order by comments.added`, post.ID)
 	if err != nil {
 		return nil, fmt.Errorf("error reading comments for post %d: %v", post.ID, err)
 	}
@@ -60,9 +65,9 @@ func (post *Post) LoadComments() ([]*Comment, error) {
 
 	for rows.Next() {
 		var id, author, fromPost, added int64
-		var content string
+		var content, authorName, authorEmail string
 
-		err = rows.Scan(&id, &content, &author, &fromPost, &added)
+		err = rows.Scan(&id, &content, &author, &added, &fromPost, &authorEmail, &authorName)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning comments query result for post %d: %v", post.ID, err)
 		}
@@ -70,6 +75,9 @@ func (post *Post) LoadComments() ([]*Comment, error) {
 		var addedTime NullTime
 		addedTime.Set(time.Unix(added, 0))
 		newComment := post.model.NewComment(id, content, author, fromPost, addedTime)
+		newComment.AuthorEmail = authorEmail
+		newComment.AuthorName = authorName
+
 		foundComments = append(foundComments, newComment)
 	}
 

@@ -240,6 +240,12 @@ func TestGetComments(t *testing.T) {
 	if newPost.Comments[1].Content != "This is a second test comment." {
 		t.Fatalf("incorrect content for newPost.Comments[1]")
 	}
+	if newPost.Comments[2].AuthorName != "Test User" {
+		t.Fatalf("incorrect authorname. expected 'Test User' but got '%s", newPost.Comments[2].AuthorName)
+	}
+	if newPost.Comments[2].AuthorEmail != "testuser@test.com" {
+		t.Fatalf("incorrect authoremail. expected 'testuser@test.com' but got '%s'", newPost.Comments[2].AuthorEmail)
+	}
 
 	dbTeardown()
 }
