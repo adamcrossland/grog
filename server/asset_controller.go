@@ -33,7 +33,7 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-length", strconv.Itoa(len(asset.Content)))
 
 		switch asset.MimeType {
-		case "text/css", "text/html", "text/plain":
+		case "text/css", "text/html", "text/plain", "text/javascript":
 			fmt.Fprintf(w, "%s", string(asset.Content))
 		default:
 			w.Write(asset.Content)
