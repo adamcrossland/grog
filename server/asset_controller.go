@@ -38,7 +38,7 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 		default:
 			w.Write(asset.Content)
 		}
-	case "PUT":
+	case "PUT", "POST":
 		r.ParseForm()
 
 		assetName, assetNameOK := r.Form["name"]
