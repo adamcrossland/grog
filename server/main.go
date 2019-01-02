@@ -45,6 +45,7 @@ func main() {
 	r.HandleFunc("/post/{id}", postController)
 	r.HandleFunc("/post", postController)
 	r.HandleFunc("/asset/{id}", assetController)
+	r.HandleFunc("/asset", assetController)
 	http.Handle("/", r)
 
 	servingAddress := os.Getenv("GROG_SERVER_ADDRESS")
