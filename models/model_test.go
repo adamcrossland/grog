@@ -171,3 +171,66 @@ func TestAddingUser(t *testing.T) {
 
 	dbTeardown()
 }
+
+func TestAddComment(t *testing.T) {
+	model := NewModel(dbSetup())
+
+	testUser := model.NewUser("testuser@test.com", "Test User")
+	testUser.Save()
+
+	newPost := model.NewPost("Test title", "Automated test post",
+		"This post is created by automted testing and should never survive the testing process", "")
+	newPost.Save()
+
+	newComment, err := newPost.AddComment("This is a test comment.", *testUser)
+	if err != nil {
+		t.Fatalf("error adding comment: %v", err)
+	}
+
+	if newComment == nil {
+		t.Fatal("newCOmment was nil")
+	}
+
+	if newComment.ID == -1 {
+		t.Fatal("newComment was not assigned a valid ID")
+	}
+
+	dbTeardown()
+}
+
+func TestGetComments(t *testing.T) {
+	model := NewModel(dbSetup())
+
+	testUser := model.NewUser("testuser@test.com", "Test User")
+	testUser.Save()
+
+	newPost := model.NewPost("Test title", "Automated test post",
+		"This post is created by automted testing and should never survive the testing process", "")
+	newPost.Save()
+
+	newPost.AddComment("This is a test comment.", *testUser)
+	newPost.AddComment("This is a second test comment.", *testUser)
+	newPost.AddComment("Testing is useful.", *testUser)
+
+	postComments, err := newPost.Comments()
+	if err != nil {
+		t.Fatalf("error retrieving comments for post: %v", err)
+	}
+	if postComments == nil {
+		t.Fatal("comments for post was nil")
+	}
+	if len(postComments) != 3 {
+		t.Fatalf("expected 3 comments on test post, but got %d", len(postComments))
+	}
+	if postComments[0].Content != "This is a test comment." {
+		t.Fatalf("incorrect content for comment 0: %s", postComments[0].Content)
+	}
+	if postComments[0].Author != testUser.ID {
+		t.Fatalf("incorrect author for comment 0. expected %d, got %d", testUser.ID, postComments[0].Author)
+	}
+	if postComments[2].Content != "Testing is useful." {
+		t.Fatalf("incorrect content for comment 2: %s", postComments[2].Content)
+	}
+
+	dbTeardown()
+}

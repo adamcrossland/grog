@@ -17,6 +17,7 @@ func init() {
 		4: manageddb.DBMigration{Up: migration4up, Down: migration4down},
 		5: manageddb.DBMigration{Up: migration5up, Down: migration5down},
 		6: manageddb.DBMigration{Up: migration6up, Down: migration6down},
+		7: manageddb.DBMigration{Up: migration7up, Down: migration7down},
 	}
 }
 
@@ -103,6 +104,25 @@ func migration6up(db *sql.DB) error {
 
 func migration6down(db *sql.DB) error {
 	_, err := db.Exec(`DROP TABLE users`)
+
+	return err
+}
+
+func migration7up(db *sql.DB) error {
+	_, err := db.Exec(`CREATE TABLE 'comments' (
+		'ID'	INTEGER,
+		'Content'	TEXT NOT NULL,
+		'Added'	INTEGER NOT NULL,
+		'Author'	INTEGER NOT NULL,
+		'Post'	INTEGER NOT NULL,
+		PRIMARY KEY('ID')
+	);`)
+
+	return err
+}
+
+func migration7down(db *sql.DB) error {
+	_, err := db.Exec(`DROP TABLE comments`)
 
 	return err
 }
