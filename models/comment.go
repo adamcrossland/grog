@@ -16,13 +16,15 @@ type Comment struct {
 	Post    int64
 }
 
-func (grog *GrogModel) NewComment(id int64, content string, author int64, post int64, added NullTime) *Comment {
+// NewComment creates a new Comment instance
+func (model *GrogModel) NewComment(id int64, content string, author int64, post int64, added NullTime) *Comment {
 	newComment := new(Comment)
 	newComment.ID = id
 	newComment.Content = content
 	newComment.Author = author
 	newComment.Post = post
 	newComment.Added = added
+	newComment.model = model
 
 	return newComment
 }
@@ -43,7 +45,8 @@ func (post *Post) AddComment(content string, author User) (*Comment, error) {
 	return nil, err
 }
 
-// Comments retrieves all comments related to the Post.
+// LoadComments retrieves all comments related to the Post. They are returned by this call, but are
+// also available in the Post's Comments property.
 func (post *Post) LoadComments() ([]*Comment, error) {
 
 	rows, err := post.model.db.DB.Query("select id, content, author, post, added from Comments where post = ? order by added", post.ID)
