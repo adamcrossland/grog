@@ -10,14 +10,15 @@ import (
 
 // Post models an individual unit of blog content
 type Post struct {
-	model   *GrogModel
-	ID      int64
-	Title   string
-	Summary string
-	Body    string
-	Slug    string
-	Added   NullTime
-	Edited  NullTime
+	model    *GrogModel
+	ID       int64
+	Title    string
+	Summary  string
+	Body     string
+	Slug     string
+	Added    NullTime
+	Edited   NullTime
+	Comments []*Comment
 }
 
 // NewPost creates a new Post object

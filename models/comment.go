@@ -44,7 +44,7 @@ func (post *Post) AddComment(content string, author User) (*Comment, error) {
 }
 
 // Comments retrieves all comments related to the Post.
-func (post *Post) Comments() ([]*Comment, error) {
+func (post *Post) LoadComments() ([]*Comment, error) {
 
 	rows, err := post.model.db.DB.Query("select id, content, author, post, added from Comments where post = ? order by added", post.ID)
 	if err != nil {
@@ -70,5 +70,6 @@ func (post *Post) Comments() ([]*Comment, error) {
 		foundComments = append(foundComments, newComment)
 	}
 
+	post.Comments = foundComments
 	return foundComments, nil
 }

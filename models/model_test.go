@@ -212,7 +212,7 @@ func TestGetComments(t *testing.T) {
 	newPost.AddComment("This is a second test comment.", *testUser)
 	newPost.AddComment("Testing is useful.", *testUser)
 
-	postComments, err := newPost.Comments()
+	postComments, err := newPost.LoadComments()
 	if err != nil {
 		t.Fatalf("error retrieving comments for post: %v", err)
 	}
@@ -230,6 +230,15 @@ func TestGetComments(t *testing.T) {
 	}
 	if postComments[2].Content != "Testing is useful." {
 		t.Fatalf("incorrect content for comment 2: %s", postComments[2].Content)
+	}
+	if newPost.Comments == nil {
+		t.Fatalf("LoadComments did not save comments to Comments field")
+	}
+	if len(newPost.Comments) != 3 {
+		t.Fatalf("expected 3 comments in newPost.Comments, but got %d", len(newPost.Comments))
+	}
+	if newPost.Comments[1].Content != "This is a second test comment." {
+		t.Fatalf("incorrect content for newPost.Comments[1]")
 	}
 
 	dbTeardown()
