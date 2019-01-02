@@ -62,6 +62,8 @@ func getPost(w http.ResponseWriter, r *http.Request, postID string) {
 		return
 	}
 
+	post.LoadComments()
+
 	if noCaching {
 		mtemplate.ClearFromCache("post.html")
 		mtemplate.ClearFromCache("base.html")
