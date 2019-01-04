@@ -76,6 +76,11 @@ func (asset Asset) Exists() bool {
 func (asset *Asset) Save() error {
 	var saveError error
 
+	var serveExternalVal int64 = 0
+	if asset.ServeExternal {
+		serveExternalVal = 1
+	}
+
 	if !asset.Exists() {
 		// New, do insert
 		if asset.Added.IsNull() {
@@ -84,11 +89,6 @@ func (asset *Asset) Save() error {
 
 		if asset.Modified.IsNull() {
 			asset.Modified.Set(asset.Added.Time)
-		}
-
-		var serveExternalVal int64 = 0
-		if asset.ServeExternal {
-			serveExternalVal = 1
 		}
 
 		_, err := asset.model.db.DB.Exec(`insert into assets (name, mimeType, content, serve_external,
@@ -101,8 +101,8 @@ func (asset *Asset) Save() error {
 
 		asset.Modified.Set(time.Now())
 
-		_, err := asset.model.db.DB.Exec(`update assets set mimeType = ?, content = ?,
-				modified = ? where name = ?`, asset.MimeType, asset.Content,
+		_, err := asset.model.db.DB.Exec(`update assets set mimeType = ?, content = ?, serve_external = ?,
+				modified = ? where name = ?`, asset.MimeType, asset.Content, serveExternalVal,
 			asset.Modified.Unix(), asset.Name)
 		saveError = err
 	}
