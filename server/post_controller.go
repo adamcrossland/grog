@@ -23,7 +23,7 @@ func postController(w http.ResponseWriter, r *http.Request) {
 		}
 
 		getPost(w, r, postID)
-	case "PUT":
+	case "PUT", "POST":
 		putPost(w, r)
 		// TODO: This must be authenticated and authorized
 
@@ -80,21 +80,21 @@ func getPost(w http.ResponseWriter, r *http.Request, postID string) {
 func putPost(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
-	title, titleOK := r.Form["title"]
+	title, titleOK := r.Form["post_title"]
 	if !titleOK || len(title) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "title must be provided and cannot be empty")
 		return
 	}
 
-	body, bodyOK := r.Form["body"]
+	body, bodyOK := r.Form["post_content"]
 	if !bodyOK || len(body) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "body must be provided and cannot be empty")
+		fmt.Fprintf(w, "content must be provided and cannot be empty")
 		return
 	}
 
-	summary, _ := r.Form["summary"]
+	summary, _ := r.Form["post_summary"]
 
 	newlyAdded := grog.NewPost(title[0], summary[0], body[0], "")
 	saveErr := newlyAdded.Save()
@@ -104,5 +104,15 @@ func putPost(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error saving new post: %v", saveErr)
 	}
 
+	http.Redirect(w, r, urlForPost(*newlyAdded), http.StatusSeeOther)
+
 	return
+}
+
+func postEditor(w http.ResponseWriter, r *http.Request) {
+	mtemplate.RenderFile("newpost.html", w, nil)
+}
+
+func urlForPost(post model.Post) string {
+	return "/post/" + post.Slug
 }

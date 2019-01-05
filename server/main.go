@@ -42,9 +42,10 @@ func main() {
 	// Set up request routing
 	r := mux.NewRouter()
 
+	r.HandleFunc("/post/editor", postEditor)
 	r.HandleFunc("/post/{id}", postController)
 	r.HandleFunc("/post", postController)
-	r.HandleFunc("/asset/{id}", assetController)
+	r.HandleFunc("/asset/{id:[a-zA-z0-9/-_\\.]+}", assetController)
 	r.HandleFunc("/asset", assetController)
 	http.Handle("/", r)
 
