@@ -134,6 +134,7 @@ func (post Post) IndexSet() bool {
 	return post.ID != -1
 }
 
+// MakeSlug creates a URL-safe version of a string, usually the Title of a Post.
 func MakeSlug(toSlug string) string {
 	a := strings.ToLower(toSlug)
 	b := make([]rune, 0)
