@@ -96,7 +96,30 @@ func putPost(w http.ResponseWriter, r *http.Request) {
 
 	summary, _ := r.Form["post_summary"]
 
-	newlyAdded := grog.NewPost(title[0], summary[0], body[0], "")
+	var newlyAdded *model.Post
+
+	postID, postIDOK := r.Form["post_id"]
+
+	if postIDOK && len(postID[0]) > 0 {
+		var getErr error
+		intID, _ := strconv.Atoi(postID[0])
+		newlyAdded, getErr = grog.GetPost(int64(intID))
+		if getErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error retrieving Post for update; changes not saved")
+			log.Printf("error retrieving Post %d for update: %v", postID[0], getErr)
+			return
+		}
+		if newlyAdded.Title != title[0] {
+			newlyAdded.Title = model.MakeSlug(title[0])
+		}
+		newlyAdded.Title = title[0]
+		newlyAdded.Summary = summary[0]
+		newlyAdded.Body = body[0]
+	} else {
+		newlyAdded = grog.NewPost(title[0], summary[0], body[0], "")
+	}
+
 	saveErr := newlyAdded.Save()
 	if saveErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -110,7 +133,34 @@ func putPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func postEditor(w http.ResponseWriter, r *http.Request) {
-	mtemplate.RenderFile("newpost.html", w, nil)
+	var onPost *model.Post
+
+	r.ParseForm()
+	id, idOK := r.Form["id"]
+	if idOK {
+		// We are being asked to edit an existing post. Retrieve it and pass it to the template
+		parsedID, parseErr := strconv.Atoi(id[0])
+		if parseErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "could not parse %s as a valid post id, which must be numeric", id)
+			return
+		}
+
+		var getPostErr error
+		onPost, getPostErr = grog.GetPost(int64(parsedID))
+		if getPostErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "error retrieving post; try again later")
+			log.Printf("error retrieving post %d: %v", parsedID, getPostErr)
+			return
+		}
+	}
+
+	if noCaching {
+		mtemplate.ClearFromCache("newpost.html")
+	}
+
+	mtemplate.RenderFile("newpost.html", w, onPost)
 }
 
 func urlForPost(post model.Post) string {

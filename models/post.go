@@ -28,7 +28,7 @@ func (model *GrogModel) NewPost(title string, summary string, body string, slug 
 	newPost.ID = -1 // Not set value
 	newPost.Title = title
 	if len(slug) == 0 {
-		newPost.Slug = newPost.autoSlug()
+		newPost.Slug = MakeSlug(newPost.Title)
 	}
 	newPost.Summary = summary
 	newPost.Body = body
@@ -118,8 +118,9 @@ func (post *Post) Save() error {
 
 		saveError = err
 	} else {
+		post.Edited.Set(time.Now())
 		// Exists, do update
-		_, err := post.model.db.DB.Exec(`update posts set title = ?, summary = ?, body = ?, slug = ?
+		_, err := post.model.db.DB.Exec(`update posts set title = ?, summary = ?, body = ?, slug = ?,
 				added = ?, edited = ? where Id = ?`, post.Title, post.Summary, post.Body, post.Slug,
 			post.Added.Unix(), post.Edited.Unix(), post.ID)
 		saveError = err
@@ -133,8 +134,8 @@ func (post Post) IndexSet() bool {
 	return post.ID != -1
 }
 
-func (post Post) autoSlug() string {
-	a := strings.ToLower(post.Title)
+func MakeSlug(toSlug string) string {
+	a := strings.ToLower(toSlug)
 	b := make([]rune, 0)
 	prevSpace := false
 	for _, rune := range a {
