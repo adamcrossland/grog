@@ -36,7 +36,7 @@ func main() {
 	db := manageddb.NewManagedDB(dbFilename, "sqlite3", migrations.DatabaseMigrations, false)
 	grog = model.NewModel(db)
 
-	// Set up templating engine to read files fromthe database
+	// Set up templating engine to read files from the database
 	mtemplate.TemplateSourceReader = dbFileReader
 
 	// Set up request routing
