@@ -166,3 +166,119 @@ func postEditor(w http.ResponseWriter, r *http.Request) {
 func urlForPost(post model.Post) string {
 	return "/post/" + post.Slug
 }
+
+func postCommentController(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	postID, ok := vars["id"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "id of post must be provided")
+		return
+	}
+
+	switch r.Method {
+	case "GET":
+		getComment(w, r, postID)
+	case "POST":
+		postComment(w, r, postID)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func getComment(w http.ResponseWriter, r *http.Request, postID string) {
+	// Show the Post page with an open comment area. This will generally only
+	// happen when JS is not available in the browser.
+	var post *model.Post
+	var postErr error
+
+	parsedID, parseErr := strconv.Atoi(postID)
+
+	if parseErr == nil {
+		// Numeric argument was provided, so retrieve the post with the ID
+		post, postErr = grog.GetPost(int64(parsedID))
+	} else {
+		// Non-numeric argument, treat it as a slug
+		post, postErr = grog.GetPostBySlug(postID)
+	}
+
+	if postErr != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error retrieving post %s: %v", postID, postErr)
+
+		return
+	}
+
+	if post == nil {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Could not find post %s", postID)
+		return
+	}
+
+	post.LoadComments()
+
+	if noCaching {
+		mtemplate.ClearFromCache("new_comment.html")
+		mtemplate.ClearFromCache("post.html")
+		mtemplate.ClearFromCache("base.html")
+	}
+
+	renderErr := mtemplate.RenderFile("new_comment.html", w, post)
+	if renderErr != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error rendering post template: %v", renderErr)
+		log.Printf("Error rendering post template: %v", renderErr)
+	}
+}
+
+func postComment(w http.ResponseWriter, r *http.Request, postID string) {
+	r.ParseForm()
+
+	content, contentOK := r.Form["comment"]
+	if !contentOK || len(content) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "content must be provided and cannot be empty")
+		return
+	}
+
+	parsedID, parseErr := strconv.Atoi(postID)
+
+	if parseErr != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "provided post id %s could not be converted to a post id", postID)
+		return
+	}
+
+	onPost, onPostErr := grog.GetPost(int64(parsedID))
+	if onPostErr != nil {
+		log.Printf("error retrieving post %d: %v", parsedID, onPostErr)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "error retrieving post. try again later.")
+		return
+	}
+
+	// TODO: once authentication has been added; this code will need to look up
+	// the actual user. For now, just use user 1.
+	commentingUser, commentingUserErr := grog.GetUser(1)
+	if commentingUserErr != nil {
+		log.Printf("could not load user %d: %v", 1, commentingUserErr)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "could not load user. try again later.")
+		return
+	}
+
+	_, newCommentErr := onPost.AddComment(content[0], *commentingUser)
+	if newCommentErr != nil {
+		log.Printf("error adding new comment to post %d: %v", parsedID, newCommentErr)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "error saving comment. try again later.")
+		return
+	}
+
+	// Comment was saved successfully. Redirect nack to the post itself, so the user
+	// can see their post in context.
+	http.Redirect(w, r, urlForPost(*onPost), http.StatusSeeOther)
+
+	return
+}
