@@ -52,6 +52,32 @@ func main() {
 			helpAssetCmd()
 			os.Exit(-1)
 		}
+	case "user":
+		if len(args) >= 5 {
+			switch strings.ToLower(args[2]) {
+			case "add":
+				username := args[3]
+				emailAddress := args[4]
+
+				fmt.Printf("Adding user (%s) with email address (%s)\n", username, emailAddress)
+
+				grog := getModel()
+				newUser := grog.NewUser(emailAddress, username)
+				newUserErr := newUser.Save()
+				if newUserErr != nil {
+					fmt.Printf("error adding new user: %v\n", newUserErr)
+				} else {
+					fmt.Printf("user added\n")
+				}
+
+			default:
+				fmt.Printf("user sub-command %s not understood\n", args[2])
+				helpUserCmd()
+			}
+		} else {
+			helpUserCmd()
+			os.Exit(-1)
+		}
 	default:
 		help()
 	}
@@ -75,8 +101,13 @@ func getModel() *model.GrogModel {
 func help() {
 	fmt.Println("Usage:")
 	helpAssetCmd()
+	helpUserCmd()
 }
 
 func helpAssetCmd() {
-	fmt.Println("\tgrogcmd asset add [-ext] <file|directory>")
+	fmt.Println("\tgrogcmd asset add [-ext] <file|directory>\n")
+}
+
+func helpUserCmd() {
+	fmt.Println("\tgrogcmd user add \"name\" \"emailAddress\"\n")
 }
