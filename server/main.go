@@ -16,14 +16,13 @@ import (
 )
 
 var grog *model.GrogModel
-var noCaching = false
 
 func main() {
 	argsWithoutProg := os.Args[1:]
 	for i := 0; i < len(argsWithoutProg); i++ {
 		switch strings.ToLower(argsWithoutProg[i]) {
 		case "--no-cache":
-			noCaching = true
+			mtemplate.Cache = false
 		}
 	}
 
@@ -42,10 +41,8 @@ func main() {
 	// Set up request routing
 	r := mux.NewRouter()
 
-	r.HandleFunc("/post/editor", postEditor)
-	r.HandleFunc("/post/comment/{id}", postCommentController)
-	r.HandleFunc("/post/{id}", postController)
-	r.HandleFunc("/post", postController)
+	r.HandleFunc("/content/{id:[a-zA-z0-9/-_\\.]+}", contentController)
+	r.HandleFunc("/content", contentController)
 	r.HandleFunc("/asset/{id:[a-zA-z0-9/-_\\.]+}", assetController)
 	r.HandleFunc("/asset", assetController)
 	http.Handle("/", r)
@@ -85,14 +82,13 @@ func redirect(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, target, http.StatusTemporaryRedirect)
 }
 
-func dbFileReader(contentid string) (data []byte, err error) {
-	var content *model.Asset
-	content, err = grog.GetAsset(contentid)
+func dbFileReader(assetID string) (data []byte, err error) {
+	var asset *model.Asset
+	asset, err = grog.GetAsset(assetID)
 	if err == nil {
-		data = make([]byte, len(content.Content))
-		copy(data, content.Content)
+		data = asset.Content
 	} else {
-		log.Printf("Error while retrieving asset %s: %v\n", contentid, err)
+		log.Printf("Error while retrieving asset %s: %v\n", assetID, err)
 	}
 
 	return

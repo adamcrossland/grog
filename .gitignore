@@ -2,7 +2,9 @@
 *.db-journal
 *~
 server/server
+server/server.exe
 server/localcert
 server/templates
 server/env.sh
 grogcmd/grogcmd
+.vscode

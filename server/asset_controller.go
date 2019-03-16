@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
+	"strings"
 
+	"bitbucket.org/adamcrossland/mtemplate"
 	"github.com/gorilla/mux"
 )
 
@@ -30,11 +31,18 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-type", asset.MimeType)
-		w.Header().Set("Content-length", strconv.Itoa(len(asset.Content)))
 
-		switch asset.MimeType {
+		mimeTypeParts := strings.Split(asset.MimeType, ";")
+		mimeTypeAbbrv := mimeTypeParts[0]
+
+		switch mimeTypeAbbrv {
 		case "text/css", "text/html", "text/plain", "text/javascript":
-			fmt.Fprintf(w, "%s", string(asset.Content))
+			if asset.Rendered {
+				parsedTemplate := mtemplate.MustParse(string(asset.Content), nil)
+				parsedTemplate.Execute(w, nil)
+			} else {
+				fmt.Fprintf(w, "%s", string(asset.Content))
+			}
 		default:
 			w.Write(asset.Content)
 		}

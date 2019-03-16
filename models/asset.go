@@ -13,6 +13,7 @@ type Asset struct {
 	MimeType      string
 	Content       []byte
 	ServeExternal bool
+	Rendered      bool
 	Added         NullTime
 	Modified      NullTime
 }
@@ -34,19 +35,26 @@ func (model *GrogModel) GetAsset(name string) (*Asset, error) {
 	var mimeType string
 	var content = make([]byte, 0)
 	var serveExternal int64
+	var rendered int64
 	var added int64
 	var modified int64
 	var err error
 
-	row := model.db.DB.QueryRow("select mimeType, content, serve_external, added, modified from Assets where name = ?", name)
-	if row.Scan(&mimeType, &content, &serveExternal, &added, &modified) != sql.ErrNoRows {
+	row := model.db.DB.QueryRow(`select mimeType, content, serve_external, rendered,
+		added, modified from Assets where name = ?`, name)
+	if row.Scan(&mimeType, &content, &serveExternal, &rendered, &added, &modified) != sql.ErrNoRows {
 		foundAsset = model.NewAsset(name, mimeType)
-		foundAsset.Content = make([]byte, len(content))
-		copy(foundAsset.Content, content)
+		foundAsset.Content = content
 		if serveExternal == 1 {
 			foundAsset.ServeExternal = true
 		} else {
 			foundAsset.ServeExternal = false
+		}
+
+		if rendered == 1 {
+			foundAsset.Rendered = true
+		} else {
+			foundAsset.Rendered = false
 		}
 
 		foundAsset.Added.Set(time.Unix(added, 0))
@@ -76,9 +84,14 @@ func (asset Asset) Exists() bool {
 func (asset *Asset) Save() error {
 	var saveError error
 
-	var serveExternalVal int64 = 0
+	var serveExternalVal int64
 	if asset.ServeExternal {
 		serveExternalVal = 1
+	}
+
+	var renderedVal int64
+	if asset.Rendered {
+		renderedVal = 1
 	}
 
 	if !asset.Exists() {
@@ -92,8 +105,9 @@ func (asset *Asset) Save() error {
 		}
 
 		_, err := asset.model.db.DB.Exec(`insert into assets (name, mimeType, content, serve_external,
-			added, modified) values (?, ?, ?, ?, ?, ?)`,
-			asset.Name, asset.MimeType, asset.Content, serveExternalVal, asset.Added.Unix(), asset.Modified.Unix())
+			rendered, added, modified) values (?, ?, ?, ?, ?, ?, ?)`,
+			asset.Name, asset.MimeType, asset.Content, serveExternalVal, renderedVal,
+			asset.Added.Unix(), asset.Modified.Unix())
 
 		saveError = err
 	} else {
@@ -102,8 +116,8 @@ func (asset *Asset) Save() error {
 		asset.Modified.Set(time.Now())
 
 		_, err := asset.model.db.DB.Exec(`update assets set mimeType = ?, content = ?, serve_external = ?,
-				modified = ? where name = ?`, asset.MimeType, asset.Content, serveExternalVal,
-			asset.Modified.Unix(), asset.Name)
+				rendered = ?, modified = ? where name = ?`, asset.MimeType, asset.Content, serveExternalVal,
+			renderedVal, asset.Modified.Unix(), asset.Name)
 		saveError = err
 	}
 

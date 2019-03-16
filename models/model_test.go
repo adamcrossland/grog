@@ -18,11 +18,12 @@ func dbSetup() *manageddb.ManagedDB {
 func dbTeardown() {
 	os.Remove(testdbname)
 }
+
 func TestAddPost(t *testing.T) {
 	model := NewModel(dbSetup())
 
-	newPost := model.NewPost("Test title", "Automated test post",
-		"This post is created by automted testing and should never survive the testing process", "")
+	newPost := model.NewContent("Test title", "Automated test post",
+		"This post is created by automted testing and should never survive the testing process", "", "")
 	saveErr := newPost.Save()
 
 	if saveErr != nil {
@@ -33,7 +34,7 @@ func TestAddPost(t *testing.T) {
 		t.Fatal("Id not set after post save.")
 	}
 
-	savedPost, loadErr := model.GetPost(newPost.ID)
+	savedPost, loadErr := model.GetContent(newPost.ID)
 
 	if loadErr != nil {
 		t.Fatalf("Getting just-saved Post resulted in database error: %v", loadErr)
@@ -45,7 +46,7 @@ func TestAddPost(t *testing.T) {
 		t.Fatalf("savePost had different id (%d) than newPost (%d)", savedPost.ID, newPost.ID)
 	}
 	if savedPost.Title != newPost.Title {
-		t.Fatal("savedPost and newPost had different Title values")
+		t.Fatalf("savedPost and newPost had different Title values (%s), (%s)", savedPost.Title, newPost.Title)
 	}
 	if savedPost.Summary != newPost.Summary {
 		t.Fatal("savedPost and newPost had different Summary values")
@@ -62,7 +63,6 @@ func TestAddPost(t *testing.T) {
 
 	dbTeardown()
 }
-
 func TestAddAsset(t *testing.T) {
 	model := NewModel(dbSetup())
 
@@ -108,23 +108,22 @@ func TestAddAsset(t *testing.T) {
 
 	dbTeardown()
 }
-
 func TestPostSlugging(t *testing.T) {
 	model := NewModel(dbSetup())
 
-	testPost1 := model.NewPost("This is a test post", "", "TEST", "")
+	testPost1 := model.NewContent("This is a test post", "", "TEST", "", "")
 
 	if testPost1.Slug != "this-is-a-test-post" {
 		t.Fatalf("testPost1 has incorrect slug %s", testPost1.Slug)
 	}
 
-	testPost2 := model.NewPost("This   is a test   post", "", "TEST", "")
+	testPost2 := model.NewContent("This   is a test   post", "", "TEST", "", "")
 
 	if testPost2.Slug != "this-is-a-test-post" {
 		t.Fatalf("testPost2 has incorrect slug %s", testPost2.Slug)
 	}
 
-	testPost3 := model.NewPost("This is @a test' post!", "", "TEST", "")
+	testPost3 := model.NewContent("This is @a test' post!", "", "TEST", "", "")
 
 	if testPost3.Slug != "this-is-a-test-post" {
 		t.Fatalf("testPost3 has incorrect slug %s", testPost3.Slug)
@@ -132,7 +131,6 @@ func TestPostSlugging(t *testing.T) {
 
 	dbTeardown()
 }
-
 func TestAddingUser(t *testing.T) {
 	model := NewModel(dbSetup())
 
@@ -172,80 +170,63 @@ func TestAddingUser(t *testing.T) {
 	dbTeardown()
 }
 
-func TestAddComment(t *testing.T) {
+func TestContentChildren(t *testing.T) {
 	model := NewModel(dbSetup())
 
-	testUser := model.NewUser("testuser@test.com", "Test User")
-	testUser.Save()
+	newPost := model.NewContent("Test Parent", "Automated test post with children",
+		"This post is created by automted testing to test the ability to load child content", "", "")
+	saveErr := newPost.Save()
 
-	newPost := model.NewPost("Test title", "Automated test post",
-		"This post is created by automted testing and should never survive the testing process", "")
-	newPost.Save()
-
-	newComment, err := newPost.AddComment("This is a test comment.", *testUser)
-	if err != nil {
-		t.Fatalf("error adding comment: %v", err)
+	if saveErr != nil {
+		t.Fatalf("Saving new Content resulted in database error: %v", saveErr)
 	}
 
-	if newComment == nil {
-		t.Fatal("newCOmment was nil")
+	if !newPost.IndexSet() {
+		t.Fatal("Id not set after Content save.")
 	}
 
-	if newComment.ID == -1 {
-		t.Fatal("newComment was not assigned a valid ID")
+	childPost1 := model.NewContent("Child 1", "Child Content 1",
+		"This content should be the first child of Test Parent", "", "")
+	childPost1.Parent = newPost.ID
+	saveErr = childPost1.Save()
+	if saveErr != nil {
+		t.Fatalf("Saving Child 1 Content resulted in database error: %v", saveErr)
+	}
+	if !childPost1.IndexSet() {
+		t.Fatal("Id not set after Child 1 Content save.")
 	}
 
-	dbTeardown()
-}
-
-func TestGetComments(t *testing.T) {
-	model := NewModel(dbSetup())
-
-	testUser := model.NewUser("testuser@test.com", "Test User")
-	testUser.Save()
-
-	newPost := model.NewPost("Test title", "Automated test post",
-		"This post is created by automted testing and should never survive the testing process", "")
-	newPost.Save()
-
-	newPost.AddComment("This is a test comment.", *testUser)
-	newPost.AddComment("This is a second test comment.", *testUser)
-	newPost.AddComment("Testing is useful.", *testUser)
-
-	postComments, err := newPost.LoadComments()
-	if err != nil {
-		t.Fatalf("error retrieving comments for post: %v", err)
+	childPost2 := model.NewContent("Child 2", "Child Content 2",
+		"This content should be the second child of Test Parent", "", "")
+	childPost2.Parent = newPost.ID
+	saveErr = childPost2.Save()
+	if saveErr != nil {
+		t.Fatalf("Saving Child 2 Content resulted in database error: %v", saveErr)
 	}
-	if postComments == nil {
-		t.Fatal("comments for post was nil")
-	}
-	if len(postComments) != 3 {
-		t.Fatalf("expected 3 comments on test post, but got %d", len(postComments))
-	}
-	if postComments[0].Content != "This is a test comment." {
-		t.Fatalf("incorrect content for comment 0: %s", postComments[0].Content)
-	}
-	if postComments[0].Author != testUser.ID {
-		t.Fatalf("incorrect author for comment 0. expected %d, got %d", testUser.ID, postComments[0].Author)
-	}
-	if postComments[2].Content != "Testing is useful." {
-		t.Fatalf("incorrect content for comment 2: %s", postComments[2].Content)
-	}
-	if newPost.Comments == nil {
-		t.Fatalf("LoadComments did not save comments to Comments field")
-	}
-	if len(newPost.Comments) != 3 {
-		t.Fatalf("expected 3 comments in newPost.Comments, but got %d", len(newPost.Comments))
-	}
-	if newPost.Comments[1].Content != "This is a second test comment." {
-		t.Fatalf("incorrect content for newPost.Comments[1]")
-	}
-	if newPost.Comments[2].AuthorName != "Test User" {
-		t.Fatalf("incorrect authorname. expected 'Test User' but got '%s", newPost.Comments[2].AuthorName)
-	}
-	if newPost.Comments[2].AuthorEmail != "testuser@test.com" {
-		t.Fatalf("incorrect authoremail. expected 'testuser@test.com' but got '%s'", newPost.Comments[2].AuthorEmail)
+	if !childPost2.IndexSet() {
+		t.Fatal("Id not set after Child 2 Content save.")
 	}
 
-	dbTeardown()
+	childPost3 := model.NewContent("Child 3", "Child Content 3",
+		"This content should be the third child of Test Parent", "", "")
+	childPost3.Parent = newPost.ID
+	saveErr = childPost3.Save()
+	if saveErr != nil {
+		t.Fatalf("Saving Child 3 Content resulted in database error: %v", saveErr)
+	}
+	if !childPost3.IndexSet() {
+		t.Fatal("Id not set after Child 3 Content save.")
+	}
+
+	if len(newPost.Children) != 0 {
+		t.Fatalf("newPost Children was %d instead of 0", len(newPost.Children))
+	}
+
+	newPost.IncludeChildren()
+
+	if len(newPost.Children) != 3 {
+		t.Fatalf("newPost Children was %d instead of 3", len(newPost.Children))
+	}
+
+	//dbTeardown()
 }

@@ -13,11 +13,6 @@ func init() {
 	DatabaseMigrations = map[int]manageddb.DBMigration{
 		1: manageddb.DBMigration{Up: migration1up, Down: migration1down},
 		2: manageddb.DBMigration{Up: migration2up, Down: migration2down},
-		3: manageddb.DBMigration{Up: migration3up, Down: migration3down},
-		4: manageddb.DBMigration{Up: migration4up, Down: migration4down},
-		5: manageddb.DBMigration{Up: migration5up, Down: migration5down},
-		6: manageddb.DBMigration{Up: migration6up, Down: migration6down},
-		7: manageddb.DBMigration{Up: migration7up, Down: migration7down},
 	}
 }
 
@@ -34,64 +29,9 @@ func migration1down(db *sql.DB) error {
 }
 
 func migration2up(db *sql.DB) error {
-	_, err := db.Exec(`create table posts (id integer primary key,
-		title text,
-		summary text,
-		body text,
-		added integer,
-		edited integer)`)
+	var err error
 
-	return err
-}
-
-func migration2down(db *sql.DB) error {
-	_, err := db.Exec("drop table posts")
-
-	return err
-}
-
-func migration3up(db *sql.DB) error {
-	_, err := db.Exec(`create table assets (name text primary key,
-		mimeType text,
-		content blob,
-		serve_external integer,
-		added integer,
-		modified integer)`)
-
-	return err
-}
-
-func migration3down(db *sql.DB) error {
-	_, err := db.Exec("drop table assets")
-
-	return err
-}
-
-func migration4up(db *sql.DB) error {
-	_, err := db.Exec(`ALTER TABLE "posts" ADD COLUMN slug TEXT`)
-
-	return err
-}
-
-func migration4down(db *sql.DB) error {
-
-	return nil
-}
-
-func migration5up(db *sql.DB) error {
-	_, err := db.Exec(`CREATE INDEX slugindex on posts (slug)`)
-
-	return err
-}
-
-func migration5down(db *sql.DB) error {
-	_, err := db.Exec(`DROP INDEX slugindex on posts`)
-
-	return err
-}
-
-func migration6up(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE users (
+	_, err = db.Exec(`CREATE TABLE users (
 		ID	INTEGER NOT NULL,
 		Email   TEXT NOT NULL,
 		Name	TEXT NOT NULL,
@@ -99,30 +39,58 @@ func migration6up(db *sql.DB) error {
 		PRIMARY KEY('ID')
 	)`)
 
+	_, err = db.Exec(`create table content (id integer primary key,
+		title text,
+		summary text,
+		body text,
+		slug text,
+		template text,
+		parent integer,
+		author integer,
+		added integer,
+		edited integer)`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`create index slugindex on content (slug)`)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(`create table assets (name text primary key,
+		mimeType text,
+		content blob,
+		serve_external integer,
+		rendered integer,
+		added integer,
+		modified integer)`)
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
-func migration6down(db *sql.DB) error {
-	_, err := db.Exec(`DROP TABLE users`)
+func migration2down(db *sql.DB) error {
+	var err error
 
-	return err
-}
+	_, err = db.Exec("drop table content")
+	if err != nil {
+		return err
+	}
 
-func migration7up(db *sql.DB) error {
-	_, err := db.Exec(`CREATE TABLE 'comments' (
-		'ID'	INTEGER,
-		'Content'	TEXT NOT NULL,
-		'Added'	INTEGER NOT NULL,
-		'Author'	INTEGER NOT NULL,
-		'Post'	INTEGER NOT NULL,
-		PRIMARY KEY('ID')
-	);`)
+	_, err = db.Exec(`drop index slugindex on content`)
+	if err != nil {
+		return err
+	}
 
-	return err
-}
+	_, err = db.Exec("drop table assets")
+	if err != nil {
+		return err
+	}
 
-func migration7down(db *sql.DB) error {
-	_, err := db.Exec(`DROP TABLE comments`)
+	_, err = db.Exec(`DROP TABLE users`)
 
 	return err
 }
