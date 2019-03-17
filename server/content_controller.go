@@ -103,7 +103,7 @@ func putContent(w http.ResponseWriter, r *http.Request) {
 		if getErr != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "error retrieving Post for update; changes not saved")
-			log.Printf("error retrieving Post %d for update: %v", contentID[0], getErr)
+			log.Printf("error retrieving Post %s for update: %v", contentID[0], getErr)
 			return
 		}
 		if len(newlyAdded.Title) > 0 && newlyAdded.Title != title[0] {
