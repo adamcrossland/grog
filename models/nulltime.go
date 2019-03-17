@@ -26,6 +26,10 @@ func (dbtime NullTime) Unix() int64 {
 	return 0
 }
 
+func (dbtime NullTime) Val() time.Time {
+	return dbtime.Time
+}
+
 func (dbtime NullTime) String() string {
 	return dbtime.Time.String()
 }

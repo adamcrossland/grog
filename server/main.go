@@ -38,6 +38,10 @@ func main() {
 	// Set up templating engine to read files from the database
 	mtemplate.TemplateSourceReader = dbFileReader
 
+	mtemplate.CustomFormatters = mtemplate.FormatterMap{
+		"shortdate": ShortDateFormatter,
+	}
+
 	// Set up request routing
 	r := mux.NewRouter()
 
