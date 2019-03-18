@@ -45,7 +45,7 @@ func main() {
 	// Set up request routing
 	r := mux.NewRouter()
 
-	r.HandleFunc("/content/{id:[a-zA-z0-9/-_\\.]+}", contentController)
+	r.HandleFunc("/content/{id:[a-zA-z0-9/\\-_\\.]+}", contentController)
 	r.HandleFunc("/content", contentController)
 	r.HandleFunc("/asset/{id:[a-zA-z0-9/-_\\.]+}", assetController)
 	r.HandleFunc("/asset", assetController)
