@@ -68,9 +68,14 @@ func (model *GrogModel) GetAsset(name string) (*Asset, error) {
 
 // Exists checks to see if an asset by this name is already stored in the database
 func (asset Asset) Exists() bool {
+	return asset.model.AssetExists(asset.Name)
+}
+
+// AssetExists checks for the existence of an Asset with the given name
+func (model *GrogModel) AssetExists(assetName string) bool {
 	doesExist := false
 
-	row := asset.model.db.DB.QueryRow("select count(1) from Assets where name = ?", asset.Name)
+	row := model.db.DB.QueryRow("select count(1) from Assets where name = ?", assetName)
 	var count int
 	row.Scan(&count)
 	if count > 0 {
@@ -140,4 +145,35 @@ func (asset Asset) Read(p []byte) (n int, err error) {
 // Size returns the number of bytes stored in the Asset's Content.
 func (asset Asset) Size() int {
 	return len(asset.Content)
+}
+
+// Delete removes the given asset from the database
+func (asset Asset) Delete() error {
+	res, err := asset.model.db.DB.Exec("delete from Assets where name = ?", asset.Name)
+	if err != nil {
+		return err
+	}
+
+	rowsDeleted, rowsDeletedErr := res.RowsAffected()
+	if rowsDeletedErr == nil && rowsDeleted != 1 {
+		return fmt.Errorf("Asset.Delete should delete exactly 1 row. Instead, returned %d", rowsDeleted)
+	}
+
+	return nil
+}
+
+// Rename changes the name associated with the Asset.
+func (asset *Asset) Rename(toName string) error {
+	if !asset.model.AssetExists(toName) {
+		_, err := asset.model.db.DB.Exec("update Assets set name = ? where name = ?", toName, asset.Name)
+		if err == nil {
+			asset.Name = toName
+		} else {
+			return fmt.Errorf("error updating Asset named '%s': %v", asset.Name, err)
+		}
+	} else {
+		return fmt.Errorf("an asset with the name %s already exists", asset.Name)
+	}
+
+	return nil
 }

@@ -12,6 +12,10 @@ import (
 
 var grog *model.GrogModel
 
+func init() {
+	grog = getModel()
+}
+
 func main() {
 	args := os.Args
 
@@ -44,6 +48,31 @@ func main() {
 
 				curDir, _ := os.Getwd()
 				loadAsset(curDir, assetName, loadForExternal)
+			case "mv":
+				if len(args) == 5 {
+					moveFrom := args[3]
+					moveTo := args[4]
+
+					if grog.AssetExists(moveTo) {
+						fmt.Printf("asset %s exists; delete it first if you want to give another asset that name\n", moveTo)
+						os.Exit(-1)
+					}
+
+					fromAsset, getFromAssetErr := grog.GetAsset(moveFrom)
+					if getFromAssetErr != nil {
+						fmt.Printf("asset %s could not be retrieved, so cannot be renamed\n", moveFrom)
+						os.Exit(-1)
+					}
+
+					renameErr := fromAsset.Rename(moveTo)
+
+					if renameErr != nil {
+						fmt.Printf("error renaming asset %s to %s: %v\n", moveFrom, moveTo, renameErr)
+						os.Exit(-1)
+					}
+				} else {
+					helpAssetCmd()
+				}
 			default:
 				fmt.Printf("asset sub-command %s not understood\n", args[2])
 				helpAssetCmd()
@@ -91,7 +120,7 @@ func getModel() *model.GrogModel {
 			panic("environment variable GROG_DATABASE_FILE must be set")
 		}
 
-		db := manageddb.NewManagedDB(dbFilename, "sqlite3", migrations.DatabaseMigrations, false)
+		db := manageddb.NewManagedDB(dbFilename, "sqlite3", migrations.DatabaseMigrations, true)
 		grog = model.NewModel(db)
 	}
 
@@ -105,9 +134,9 @@ func help() {
 }
 
 func helpAssetCmd() {
-	fmt.Println("\tgrogcmd asset add [-ext] <file|directory>\n")
+	fmt.Printf("\tgrogcmd asset add [-ext] <file|directory>\n\t              mv <from> <to>\n")
 }
 
 func helpUserCmd() {
-	fmt.Println("\tgrogcmd user add \"name\" \"emailAddress\"\n")
+	fmt.Printf("\tgrogcmd user add \"name\" \"emailAddress\"\n")
 }
