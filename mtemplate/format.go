@@ -11,18 +11,19 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
 // FormatterFunc is the signature which a function intended to be an mtemplate
 // formatter must follow
-type FormatterFunc func(io.Writer, string, ...interface{})
+type FormatterFunc func(io.Writer, string, *TemplateData, ...interface{})
 
 // StringFormatter formats into the default string representation.
 // It is stored under the name "str" and is the default formatter.
 // You can override the default formatter by storing your default
 // under the name "" in your custom formatter map.
-func StringFormatter(w io.Writer, format string, value ...interface{}) {
+func StringFormatter(w io.Writer, format string, data *TemplateData, value ...interface{}) {
 	if len(value) == 1 {
 		if b, ok := value[0].([]byte); ok {
 			w.Write(b)
@@ -33,7 +34,7 @@ func StringFormatter(w io.Writer, format string, value ...interface{}) {
 }
 
 // IntFormatter formats into an integer representation.
-func IntFormatter(w io.Writer, format string, value ...interface{}) {
+func IntFormatter(w io.Writer, format string, data *TemplateData, value ...interface{}) {
 	if len(value) == 1 {
 		strVal, strValOK := value[0].(string)
 		if !strValOK || len(strVal) > 0 {
@@ -82,7 +83,7 @@ func HTMLEscape(w io.Writer, s []byte) {
 }
 
 // HTMLFormatter formats arbitrary values for HTML
-func HTMLFormatter(w io.Writer, format string, value ...interface{}) {
+func HTMLFormatter(w io.Writer, format string, data *TemplateData, value ...interface{}) {
 	ok := false
 	var b []byte
 	if len(value) == 1 {
@@ -98,7 +99,7 @@ func HTMLFormatter(w io.Writer, format string, value ...interface{}) {
 
 // URLFormatter formats arbitrary values for inclusion in URL
 // paramters
-func URLFormatter(w io.Writer, format string, value ...interface{}) {
+func URLFormatter(w io.Writer, format string, data *TemplateData, value ...interface{}) {
 	asString := ""
 
 	if len(value) >= 1 {
@@ -107,7 +108,7 @@ func URLFormatter(w io.Writer, format string, value ...interface{}) {
 			inBuffer.Write(b)
 			asString = inBuffer.String()
 		} else {
-			asString = fmt.Sprint(value)
+			asString = fmt.Sprint(value...)
 		}
 	}
 	asString = strings.Trim(asString, "[]")
@@ -115,4 +116,73 @@ func URLFormatter(w io.Writer, format string, value ...interface{}) {
 	safeString := url.QueryEscape(asString)
 	safeAsBuffer := bytes.NewBufferString(safeString)
 	w.Write(safeAsBuffer.Bytes())
+}
+
+func pageKey(key string) string {
+	return key + "-page"
+}
+
+func pageNextPageKey(key string) string {
+	return key + "-next-page"
+}
+
+func pagePrevPageKey(key string) string {
+	return key + "-prev-page"
+}
+
+func pageTotalPagesKey(key string) string {
+	return key + "-total-pages"
+}
+
+// PaginationFormatter takes an input array and resizes it to the number and set
+// of elements to be displayed. Adds several cookies and data elements to all
+// pagination to persist across page views and to allow pagination controls
+// to be rendered.
+func PaginationFormatter(w io.Writer, format string, data *TemplateData, value ...interface{}) {
+	params := strings.Split(format, " ")
+	if len(params) != 3 {
+		panic("pagination formatter must have exactly two parameters: paginationkey and pagesize")
+	}
+
+	key := params[1]
+	pageSize, pageSizeErr := strconv.ParseInt(params[2], 10, 32)
+	if pageSizeErr != nil {
+		panic(fmt.Sprintf("paginationFormatter: second parameter (%s) must be convertible to an integer", params[2]))
+	}
+
+	var showPage int64
+
+	pageRequested := data.request.FormValue(pageKey(key))
+	if pageRequested != "" {
+		showPage, _ = strconv.ParseInt(pageRequested, 10, 32)
+	}
+
+	// The real default value is 1
+	if showPage == 0 {
+		showPage = 1
+	}
+
+	realData := value[0].([]map[string]string)
+
+	// Calculate how many potential pages there are.
+	totalPages := int64(len(realData)) / pageSize
+	if int64(len(realData))%pageSize != 0 {
+		totalPages++
+	}
+
+	paginatedData := make([]map[string]string, pageSize)
+	dataOffset := (showPage - 1) * pageSize
+
+	copy(paginatedData, realData[dataOffset:])
+	data.data[pageKey(key)] = paginatedData
+
+	data.data[pageTotalPagesKey((key))] = totalPages
+
+	if showPage > 1 {
+		data.data[pagePrevPageKey(key)] = showPage - 1
+	}
+
+	if showPage < totalPages {
+		data.data[pageNextPageKey(key)] = showPage + 1
+	}
 }

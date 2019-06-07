@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"bitbucket.org/adamcrossland/mtemplate"
+	"github.com/adamcrossland/grog/mtemplate"
 	model "github.com/adamcrossland/grog/models"
 	"github.com/gorilla/mux"
 )
@@ -62,9 +62,8 @@ func getContent(w http.ResponseWriter, r *http.Request, contentID string) {
 		return
 	}
 
-	content.IncludeChildren()
-
-	renderErr := mtemplate.RenderFile(content.Template, w, content)
+	data := mtemplate.NewTemplateData(w, r, loadedNamedQueries, content)
+	renderErr := mtemplate.RenderFile(content.Template, w, data)
 	if renderErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error rendering post template: %v", renderErr)
@@ -75,61 +74,49 @@ func getContent(w http.ResponseWriter, r *http.Request, contentID string) {
 func putContent(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 
-	title, titleOK := r.Form["content_title"]
-	if !titleOK || len(title) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "title must be provided and cannot be empty")
-		return
-	}
+	title := formStringValueOrDef(r, "content_title")
+	body := formStringValRequired(w, r, "content_body")
+	summary := formStringValueOrDef(r, "content_summary")
+	template := formStringValueOrDef(r, "content_template")
+	parentID := formIntValueOrDef(r, "content_parent")
+	contentID := formIntValueOrDef(r, "content_id")
 
-	body, bodyOK := r.Form["content_body"]
-	if !bodyOK || len(body) == 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "content must be provided and cannot be empty")
-		return
-	}
-
-	summary, _ := r.Form["content_summary"]
-	template, _ := r.Form["content_template"]
-
-	var newlyAdded *model.Content
-
-	contentID, contentIDOK := r.Form["content_id"]
-
-	if contentIDOK && len(contentID[0]) > 0 {
+	if contentID > 0 {
 		var getErr error
-		intID, _ := strconv.Atoi(contentID[0])
-		newlyAdded, getErr = grog.GetContent(int64(intID))
+
+		oldContent, getErr := grog.GetContent(contentID)
 		if getErr != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "error retrieving Post for update; changes not saved")
-			log.Printf("error retrieving Post %s for update: %v", contentID[0], getErr)
+			fmt.Fprintf(w, "error retrieving Content for update; changes not saved")
+			log.Printf("error retrieving Content %d for update: %v", contentID, getErr)
 			return
 		}
-		if len(newlyAdded.Title) > 0 && newlyAdded.Title != title[0] {
-			newlyAdded.Slug = model.MakeSlug(title[0])
+
+		oldContent.UpdateTitle(title)
+		oldContent.Summary = summary
+		oldContent.Body = body
+
+		saveErr := oldContent.Save()
+		if saveErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error updating content: %v", saveErr)
+			log.Printf("error updating content: %v", saveErr)
+		} else {
+			http.Redirect(w, r, urlForContent(*oldContent), http.StatusSeeOther)
 		}
-		newlyAdded.Title = title[0]
-		newlyAdded.Summary = summary[0]
-		newlyAdded.Body = body[0]
 	} else {
-		var newSlug string
+		newlyAdded := grog.NewContent(title, summary, body, "", template)
+		newlyAdded.Parent = parentID
 
-		if len(title[0]) > 0 {
-			newSlug = model.MakeSlug(title[0])
+		saveErr := newlyAdded.Save()
+		if saveErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "error saving new content: %v", saveErr)
+			log.Printf("error saving new content: %v", saveErr)
+		} else {
+			http.Redirect(w, r, urlForContent(*newlyAdded), http.StatusSeeOther)
 		}
-
-		newlyAdded = grog.NewContent(title[0], summary[0], body[0], newSlug, template[0])
 	}
-
-	saveErr := newlyAdded.Save()
-	if saveErr != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "error saving new content: %v", saveErr)
-		log.Printf("error saving new content: %v", saveErr)
-	}
-
-	http.Redirect(w, r, urlForContent(*newlyAdded), http.StatusSeeOther)
 
 	return
 }

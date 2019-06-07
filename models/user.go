@@ -36,8 +36,8 @@ func (user *User) Save() error {
 			user.Added.Set(time.Now())
 		}
 
-		insertResult, err := user.model.db.DB.Exec("insert into users (Email, Name, Added) values (?, ?, ?)",
-			user.Email, user.Name, user.Added.Unix())
+		insertResult, err := user.model.db.DB.Exec("insert into users (Email, Name, Added) values (?, ?, strftime('%s','now'))",
+			user.Email, user.Name)
 		if err == nil {
 			user.ID, err = insertResult.LastInsertId()
 		}
@@ -45,7 +45,7 @@ func (user *User) Save() error {
 		saveError = err
 	} else {
 		// Exists, do update
-		_, err := user.model.db.DB.Exec(`update users set Email = ?,  Name = ?, added = ? where Id = ?`,
+		_, err := user.model.db.DB.Exec(`update users set Email = ?, Name = ? where Id = ?`,
 			user.Email, user.Name, user.Added.Unix(), user.ID)
 		saveError = err
 	}

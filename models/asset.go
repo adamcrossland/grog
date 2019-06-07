@@ -110,9 +110,8 @@ func (asset *Asset) Save() error {
 		}
 
 		_, err := asset.model.db.DB.Exec(`insert into assets (name, mimeType, content, serve_external,
-			rendered, added, modified) values (?, ?, ?, ?, ?, ?, ?)`,
-			asset.Name, asset.MimeType, asset.Content, serveExternalVal, renderedVal,
-			asset.Added.Unix(), asset.Modified.Unix())
+			rendered, added, modified) values (?, ?, ?, ?, ?, strftime('%s','now'), strftime('%s','now'))`,
+			asset.Name, asset.MimeType, asset.Content, serveExternalVal, renderedVal)
 
 		saveError = err
 	} else {
@@ -121,8 +120,8 @@ func (asset *Asset) Save() error {
 		asset.Modified.Set(time.Now())
 
 		_, err := asset.model.db.DB.Exec(`update assets set mimeType = ?, content = ?, serve_external = ?,
-				rendered = ?, modified = ? where name = ?`, asset.MimeType, asset.Content, serveExternalVal,
-			renderedVal, asset.Modified.Unix(), asset.Name)
+				rendered = ?, modified = strftime('%s','now') where name = ?`, asset.MimeType, asset.Content, serveExternalVal,
+			renderedVal, asset.Name)
 		saveError = err
 	}
 

@@ -13,6 +13,7 @@ func init() {
 	DatabaseMigrations = map[int]manageddb.DBMigration{
 		1: manageddb.DBMigration{Up: migration1up, Down: migration1down},
 		2: manageddb.DBMigration{Up: migration2up, Down: migration2down},
+		3: manageddb.DBMigration{Up: migration3up, Down: migration3down},
 	}
 }
 
@@ -35,7 +36,7 @@ func migration2up(db *sql.DB) error {
 		ID	INTEGER NOT NULL,
 		Email   TEXT NOT NULL,
 		Name	TEXT NOT NULL,
-		Added	INTEGER NOT NULL,
+		Added	NUMERIC NOT NULL,
 		PRIMARY KEY('ID')
 	)`)
 
@@ -47,8 +48,8 @@ func migration2up(db *sql.DB) error {
 		template text,
 		parent integer,
 		author integer,
-		added integer,
-		edited integer)`)
+		added numeric,
+		modified numeric)`)
 	if err != nil {
 		return err
 	}
@@ -63,8 +64,8 @@ func migration2up(db *sql.DB) error {
 		content blob,
 		serve_external integer,
 		rendered integer,
-		added integer,
-		modified integer)`)
+		added numeric,
+		modified numeric)`)
 	if err != nil {
 		return err
 	}
@@ -91,6 +92,28 @@ func migration2down(db *sql.DB) error {
 	}
 
 	_, err = db.Exec(`DROP TABLE users`)
+
+	return err
+}
+
+func migration3up(db *sql.DB) error {
+	var err error
+
+	_, err = db.Exec(`CREATE TABLE "queries" (
+		"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+		"name"	TEXT NOT NULL,
+		"query"	TEXT NOT NULL,
+		"added"	NUMERIC,
+		"modified"	NUMERIC
+	);`)
+
+	return err
+}
+
+func migration3down(db *sql.DB) error {
+	var err error
+
+	_, err = db.Exec("drop table queries")
 
 	return err
 }

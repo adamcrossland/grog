@@ -9,13 +9,14 @@ import (
 
 	"github.com/adamcrossland/grog/migrations"
 
-	"bitbucket.org/adamcrossland/mtemplate"
+	"github.com/adamcrossland/grog/mtemplate"
 	"github.com/adamcrossland/grog/manageddb"
-	"github.com/adamcrossland/grog/models"
+	model "github.com/adamcrossland/grog/models"
 	"github.com/gorilla/mux"
 )
 
 var grog *model.GrogModel
+var loadedNamedQueries map[string]model.NamedQueryFunc
 
 func main() {
 	argsWithoutProg := os.Args[1:]
@@ -34,6 +35,9 @@ func main() {
 
 	db := manageddb.NewManagedDB(dbFilename, "sqlite3", migrations.DatabaseMigrations, false)
 	grog = model.NewModel(db)
+
+	// Load namedqueries
+	loadedNamedQueries = grog.LoadNamedQueries()
 
 	// Set up templating engine to read files from the database
 	mtemplate.TemplateSourceReader = dbFileReader

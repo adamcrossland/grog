@@ -11,7 +11,7 @@
 // diff against $(GOROOT)/src/pkg/template/template.go
 
 // Package mtemplate implements data-driven templates for generating textual
-// 	output such as HTML.
+// output such as HTML.
 package mtemplate
 
 import (
@@ -55,6 +55,7 @@ const (
 	tokChild
 	tokBlock
 	tokInclude
+	tokModel
 )
 
 // FormatterMap is the type describing the mapping from formatter
@@ -67,6 +68,7 @@ var builtins = FormatterMap{
 	"str":     StringFormatter,
 	"urlsafe": URLFormatter,
 	"int":     IntFormatter,
+	"paginate": PaginationFormatter,
 	"":        StringFormatter,
 }
 
@@ -130,6 +132,11 @@ type includeElement struct {
 	elems    *elemlist // The elements that are to be included
 }
 
+type modelElement struct {
+	modelName  string   // The name of the saved query to execute
+	parameters []string // The parameters to be passed to the prepared query
+}
+
 // Template is the type that represents a template definition.
 // It is unchanged after parsing.
 type Template struct {
@@ -156,6 +163,7 @@ func (t Template) clone() (copyT *Template) {
 	copyT.parent = t.parent
 	copyT.childData = t.childData
 	copyT.blockData = t.blockData
+	copyT.fmap = t.fmap
 
 	return copyT
 }
@@ -345,6 +353,39 @@ func words(buf []byte) []string {
 	return s
 }
 
+// Turn a byte array into an array of strings, special variable-parsing rules.
+func varWords(buf []byte) []string {
+	foundBar := false
+
+	s := make([]string, 0, 5)
+	p := 0 // position in buf
+	// one word per loop
+	for i := 0; ; i++ {
+		// skip white space
+		for ; p < len(buf) && white(buf[p]); p++ {
+		}
+		// grab word
+		start := p
+		if !foundBar {
+			for ; p < len(buf) && !white(buf[p]) && buf[p] != '|'; p++ {
+			}
+			if p < len(buf) && buf[p] == '|' {
+				foundBar = true
+			}
+			s = append(s, string(buf[start:p]))
+		} else {
+			p = len(buf) - 1
+			s = append(s, string(buf[start:]))
+			break
+		}
+		if start == p { // no text left
+			break
+		}
+	}
+
+	return s
+}
+
 // Analyze an item and return its token type and, if it's an action item, an array of
 // its constituent words.
 func (t *Template) analyze(item []byte) (tok int, w []string) {
@@ -374,6 +415,8 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 	}
 	if len(w) > 0 && w[0][0] == '!' {
 		tok = tokVariable
+		// Reparse words for variable element
+		w = varWords(item[len(t.ldelim) : len(item)-len(t.rdelim)])
 		return
 	}
 	switch w[0] {
@@ -439,6 +482,13 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 		}
 		tok = tokInclude
 		return
+	case ".model":
+		 if len(w) < 2 {
+			 t.parseError(".model must include the name of a query to execute")
+		 }
+
+		 tok = tokModel
+		return
 	}
 
 	t.parseError("bad directive: %s", item)
@@ -446,7 +496,7 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 }
 
 // formatter returns the Formatter with the given name in the Template, or nil if none exists.
-func (t *Template) formatter(name string) func(io.Writer, string, ...interface{}) {
+func (t *Template) formatter(name string) FormatterFunc {
 	if t.fmap != nil {
 		if fn := t.fmap[name]; fn != nil {
 			return fn
@@ -477,7 +527,8 @@ func (t *Template) newVariable(words []string) *variableElement {
 
 	// Is it in user-supplied map?
 	for _, f := range formatters {
-		if t.formatter(f) == nil {
+		formatterName := strings.Split(f, " ")[0]
+		if t.formatter(formatterName) == nil {
 			t.parseError("unknown formatter: %q", f)
 		}
 	}
@@ -519,6 +570,7 @@ func (t *Template) parseSimple(item []byte, elems *elemlist) (done bool, tok int
 				w = append(w[:i], w[i+1:]...)
 			}
 		}
+
 		elems.Push(t.newVariable(w))
 		return
 	}
@@ -624,6 +676,16 @@ func (t *Template) parseInclude(words []string, elems *elemlist) {
 	}
 }
 
+func (t *Template) parseModel(words []string, elems *elemlist) {
+	if len(words) >= 2 {
+		newModel := new(modelElement)
+		newModel.modelName = words[1]
+		newModel.parameters = words[2:]
+
+		elems.Push(newModel)
+	}
+}
+
 func (t *Template) parseSection(words []string, elems *elemlist) *sectionElement {
 	s := new(sectionElement)
 	elems.Push(s)
@@ -700,6 +762,8 @@ func (t *Template) parse(elems *elemlist, exitOnEnd bool) {
 			}
 		case tokInclude:
 			t.parseInclude(w, elems)
+		case tokModel:
+			t.parseModel(w, elems)
 		default:
 			t.parseError("internal error: bad directive in parse: %s", item)
 		}
@@ -841,17 +905,20 @@ func (t *Template) varValue(name string, st *state) reflect.Value {
 	return field
 }
 
-func (t *Template) format(wr io.Writer, fmt string, val []interface{}, v *variableElement, st *state) {
-	fn := t.formatter(fmt)
+func (t *Template) format(wr io.Writer, fmt string, val []interface{}, v *variableElement, st *state, data *TemplateData) {
+	// Formatters can contain space-delimited parameters, so we need to split the name off of the front
+	// for lookup.
+	formatterName := strings.Split(fmt, " ")[0]
+	fn := t.formatter(formatterName)
 	if fn == nil {
 		t.execError(st, v.linenum, "missing formatter %s for variable %s", fmt, v.word[0])
 	}
-	fn(wr, fmt, val...)
+	fn(wr, fmt, data, val...)
 }
 
 // Evaluate a variable, looking up through the parent if necessary.
 // If it has a formatter attached ({var|formatter}) run that too.
-func (t *Template) writeVariable(v *variableElement, st *state) {
+func (t *Template) writeVariable(v *variableElement, st *state, data *TemplateData) {
 	// Turn the words of the invocation into values.
 
 	val := make([]interface{}, len(v.word))
@@ -859,18 +926,18 @@ func (t *Template) writeVariable(v *variableElement, st *state) {
 		val[i] = t.varValue(word, st).Interface()
 	}
 
-	for i, fmt := range v.fmts[:len(v.fmts)-1] {
+	for i, fmat := range v.fmts[:len(v.fmts)-1] {
 		b := &st.buf[i&1]
 		b.Reset()
-		t.format(b, fmt, val, v, st)
+		t.format(b, fmat, val, v, st, data)
 		val = val[0:1]
 		val[0] = b.Bytes()
 	}
-	t.format(st.wr, v.fmts[len(v.fmts)-1], val, v, st)
+	t.format(st.wr, v.fmts[len(v.fmts)-1], val, v, st, data)
 }
 
 // Execute element i.  Return next index to execute.
-func (t *Template) executeElement(elems *elemlist, i int, st *state) int {
+func (t *Template) executeElement(elems *elemlist, i int, st *state, data *TemplateData) int {
 	switch elem := elems.At(i).(type) {
 	case *textElement:
 		st.wr.Write(elem.text)
@@ -879,13 +946,13 @@ func (t *Template) executeElement(elems *elemlist, i int, st *state) int {
 		st.wr.Write(elem.text)
 		return i + 1
 	case *variableElement:
-		t.writeVariable(elem, st)
+		t.writeVariable(elem, st, data)
 		return i + 1
 	case *sectionElement:
-		t.executeSection(elems, elem, st)
+		t.executeSection(elems, elem, st, data)
 		return elem.end
 	case *repeatedElement:
-		t.executeRepeated(elems, elem, st)
+		t.executeRepeated(elems, elem, st, data)
 		return elem.end
 	// mtemplate:
 	case *childElement:
@@ -895,28 +962,33 @@ func (t *Template) executeElement(elems *elemlist, i int, st *state) int {
 		return i + 1
 	case *blockElement:
 		blockBuffer := new(bytes.Buffer)
-		t.execute(elem.elems, &state{parent: st.parent, data: st.data, wr: blockBuffer})
+		t.execute(elem.elems, &state{parent: st.parent, data: st.data, wr: blockBuffer}, data)
 		t.blockData[elem.name] = blockBuffer
 
 		return i + 1
 	case *includeElement:
-		t.execute(elem.elems, st)
+		t.execute(elem.elems, st, data)
+		return i + 1
+	case *modelElement:
+		t.executeModel(elem, st, data)
 		return i + 1
 	}
+
 	e := t.elems.At(i)
 	t.execError(st, 0, "internal error: bad directive in execute: %v %T\n", reflect.ValueOf(e).Interface(), e)
 	return 0
 }
 
 // Execute the template.
-func (t *Template) execute(elems *elemlist, st *state) {
+func (t *Template) execute(elems *elemlist, st *state, data *TemplateData) {
+	st.data = reflect.ValueOf(data.data)
 	for i := 0; i < elems.Len(); {
-		i = t.executeElement(elems, i, st)
+		i = t.executeElement(elems, i, st, data)
 	}
 }
 
 // Execute a .section
-func (t *Template) executeSection(elems *elemlist, s *sectionElement, st *state) {
+func (t *Template) executeSection(elems *elemlist, s *sectionElement, st *state, data *TemplateData) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := t.varValue(s.field, st)
 	if !field.IsValid() {
@@ -937,7 +1009,7 @@ func (t *Template) executeSection(elems *elemlist, s *sectionElement, st *state)
 		}
 	}
 	for i := start; i < end; {
-		i = t.executeElement(elems, i, st)
+		i = t.executeElement(elems, i, st, data)
 	}
 }
 
@@ -962,9 +1034,10 @@ func iter(v reflect.Value) reflect.Value {
 }
 
 // Execute a .repeated section
-func (t *Template) executeRepeated(elems *elemlist, r *repeatedElement, st *state) {
+func (t *Template) executeRepeated(elems *elemlist, r *repeatedElement, st *state, data *TemplateData) {
 	// Find driver data for this section.  It must be in the current struct.
 	field := t.varValue(r.field, st)
+
 	if !field.IsValid() {
 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, st.data.Type())
 	}
@@ -984,12 +1057,12 @@ func (t *Template) executeRepeated(elems *elemlist, r *repeatedElement, st *stat
 		// .alternates between elements
 		if !first && r.altstart >= 0 {
 			for i := r.altstart; i < r.altend; {
-				i = t.executeElement(elems, i, newst)
+				i = t.executeElement(elems, i, newst, data)
 			}
 		}
 		first = false
 		for i := start; i < end; {
-			i = t.executeElement(elems, i, newst)
+			i = t.executeElement(elems, i, newst, data)
 		}
 	}
 
@@ -1020,11 +1093,41 @@ func (t *Template) executeRepeated(elems *elemlist, r *repeatedElement, st *stat
 		if start >= 0 {
 			newst := st.clone(field)
 			for i := start; i < end; {
-				i = t.executeElement(elems, i, newst)
+				i = t.executeElement(elems, i, newst, data)
 			}
 		}
 		return
 	}
+}
+
+func (t *Template) executeModel(m *modelElement, st *state, data *TemplateData) {
+	// Build up values of parameters that are meant to be passed in.
+	paramValues := make([]interface{}, len(m.parameters))
+	for i, p := range m.parameters {
+		// A parameter can have two parts, the name of a form value that is expected
+		// to come in with the request and a default value if the parameter is missing.
+		// Like this: postId|1 
+		paramParts := strings.Split(p, "=")
+
+		inValue := data.request.FormValue(paramParts[0])
+		if inValue == "" {
+			if len(paramParts) == 2 {
+				inValue = paramParts[1]
+			}
+			// TODO: If the value is missing and no default parameter is supplied, what to do?
+			// Not decided yet, but tha behavior should be added here when it is known.
+		}
+
+		paramValues[i] = inValue
+	}
+
+	model, modelErr := data.NamedQueries[m.modelName](paramValues)
+	if modelErr == nil {
+		data.data["model"] = model
+	}
+
+	// TODO:  As above, what is the correct behavior if the attempt to retrieve a named query
+	// fails? Add here later.
 }
 
 // A valid delimiter must contain no white space and be non-empty.
@@ -1085,7 +1188,7 @@ func (t *Template) ParseFile(filename string) (err error) {
 
 // Execute applies a parsed template to the specified data object,
 // generating output to wr.
-func (t *Template) Execute(data TemplateData) (err error) {
+func (t *Template) Execute(wr io.Writer, data *TemplateData) (err error) {
 	// Extract the driver data.
 	val := reflect.ValueOf(data.data)
 	defer checkError(&err)
@@ -1093,7 +1196,7 @@ func (t *Template) Execute(data TemplateData) (err error) {
 	// mtemplate: parent/child-specific functionality
 	if t.parent != nil {
 		childDocWriter := new(bytes.Buffer)
-		t.execute(t.elems, &state{parent: nil, data: val, wr: childDocWriter})
+		t.execute(t.elems, &state{parent: nil, data: val, wr: childDocWriter}, data)
 
 		// Now, process the Parent
 		var parentTemplate *Template
@@ -1106,11 +1209,11 @@ func (t *Template) Execute(data TemplateData) (err error) {
 		parentTemplateCopy := parentTemplate.clone()
 		parentTemplateCopy.childData = t.blockData
 		parentTemplateCopy.childData[""] = childDocWriter
-		parentTemplateCopy.Execute(data)
+		parentTemplateCopy.Execute(wr, data)
 	} else {
 		// mtemplate: this code handles templates that do not use
 		// the parent/child functionality
-		t.execute(t.elems, &state{parent: nil, data: val, wr: data.writer})
+		t.execute(t.elems, &state{parent: nil, data: val, wr: wr}, data)
 	}
 
 	return nil
@@ -1132,6 +1235,9 @@ func (t *Template) SetDelims(left, right string) {
 // for formatting variables.  The template is returned. If any errors
 // occur, err will be non-nil.
 func Parse(s string, fmap FormatterMap) (t *Template, err error) {
+	if fmap == nil {
+		fmap = CustomFormatters
+	}
 	t = New(fmap)
 	err = t.Parse(s)
 	if err != nil {
@@ -1184,6 +1290,10 @@ func ParseFile(filename string, fmap FormatterMap) (t *Template, err error) {
 
 // MustParse is like Parse but panics if the template cannot be parsed.
 func MustParse(s string, fmap FormatterMap) *Template {
+	if fmap == nil {
+		fmap = CustomFormatters
+	}
+
 	t, err := Parse(s, fmap)
 	if err != nil {
 		panic("template.MustParse error: " + err.Error())
@@ -1217,22 +1327,22 @@ func ClearFromCache(filename string) {
 
 // RenderFile reads, parses and executes a template from the given filename with the
 // given data.
-func RenderFile(filename string, data TemplateData) (err error) {
+func RenderFile(filename string, wr io.Writer, data *TemplateData) (err error) {
 	template, err := ParseFile(filename, CustomFormatters)
 	if err != nil {
 		return err
 	}
 
-	template.Execute(data)
+	template.Execute(wr, data)
 	return
 }
 
 // MustRenderFile reads, parses amd executes a templaet from the given filename
 // with the given data and panics if it is unable to complete the operation.
-func MustRenderFile(filename string, data TemplateData) {
+func MustRenderFile(filename string, wr io.Writer, data *TemplateData) {
 	template := MustParseFile(filename, CustomFormatters)
 
-	err := template.Execute(data)
+	err := template.Execute(wr, data)
 	if err != nil {
 		panic("template.MustRenderFile error executing template: " + err.Error())
 	}
