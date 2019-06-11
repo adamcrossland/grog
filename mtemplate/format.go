@@ -140,8 +140,8 @@ func pageTotalPagesKey(key string) string {
 // to be rendered.
 func PaginationFormatter(w io.Writer, format string, data *TemplateData, value ...interface{}) {
 	params := strings.Split(format, " ")
-	if len(params) != 3 {
-		panic("pagination formatter must have exactly two parameters: paginationkey and pagesize")
+	if len(params) < 3 {
+		panic("pagination formatter must have at least two parameters: paginationkey and pagesize. a third parameter, currentpage, is optional")
 	}
 
 	key := params[1]

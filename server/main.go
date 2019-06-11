@@ -9,9 +9,9 @@ import (
 
 	"github.com/adamcrossland/grog/migrations"
 
-	"github.com/adamcrossland/grog/mtemplate"
 	"github.com/adamcrossland/grog/manageddb"
 	model "github.com/adamcrossland/grog/models"
+	"github.com/adamcrossland/grog/mtemplate"
 	"github.com/gorilla/mux"
 )
 
