@@ -20,7 +20,7 @@ type Content struct {
 	Parent   int64
 	Author   int64
 	Added    NullTime
-	Edited   NullTime
+	Modified NullTime
 	Children []*Content
 }
 
@@ -49,7 +49,7 @@ func (model *GrogModel) GetContent(id int64) (*Content, error) {
 	var err error
 
 	contentRow, queryErr := model.db.DB.Query(`select id, title, summary, body, slug, template,
-												parent, author, added, edited from Content where id = ?`, id)
+												parent, author, added, modified from Content where id = ?`, id)
 
 	if queryErr == nil {
 		defer contentRow.Close()
@@ -72,7 +72,7 @@ func (model *GrogModel) GetContentBySlug(slugged string) (*Content, error) {
 	var err error
 
 	contentRow, queryErr := model.db.DB.Query(`select id, title, summary, body, slug, template,
-		parent, author, added, edited from Content where slug = ?`, slugged)
+		parent, author, added, modified from Content where slug = ?`, slugged)
 
 	if queryErr == nil {
 		defer contentRow.Close()
@@ -110,7 +110,7 @@ func (model *GrogModel) readContentFromRow(rows *sql.Rows) *Content {
 			foundContent.Parent = parent
 			foundContent.Author = author
 			foundContent.Added.Set(time.Unix(added, 0))
-			foundContent.Edited.Set(time.Unix(edited, 0))
+			foundContent.Modified.Set(time.Unix(edited, 0))
 		}
 	}
 
@@ -123,18 +123,12 @@ func (content *Content) Save() error {
 
 	if content.ID == -1 {
 		// New, do insert
-		if content.Added.IsNull() {
-			content.Added.Set(time.Now())
-		}
-
-		if content.Edited.IsNull() {
-			content.Edited.Set(content.Added.Time)
-		}
 
 		insertResult, err := content.model.db.DB.Exec(`insert into content (title, summary, body, slug, 
-			template, parent, author, added, edited) values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			template, parent, author, added, modified) values (?, ?, ?, ?, ?, ?, ?,
+				strftime('%s','now'), strftime('%s','now'))`,
 			content.Title, content.Summary, content.Body, content.Slug, content.Template,
-			content.Parent, content.Author, content.Added.Unix(), content.Edited.Unix())
+			content.Parent, content.Author)
 		if err == nil {
 			content.ID, err = insertResult.LastInsertId()
 			if err != nil {
@@ -144,12 +138,11 @@ func (content *Content) Save() error {
 
 		saveError = err
 	} else {
-		content.Edited.Set(time.Now())
 		// Exists, do update
 		_, err := content.model.db.DB.Exec(`update content set title = ?, summary = ?, body = ?, slug = ?,
-				template = ?, parent = ?, author = ?, added = ?, edited = ? where Id = ?`, content.Title,
+				template = ?, parent = ?, author = ?, modified = strftime('%s','now') where Id = ?`, content.Title,
 			content.Summary, content.Body, content.Slug, content.Template, content.Parent,
-			content.Author, content.Added.Unix(), content.Edited.Unix(), content.ID)
+			content.Author, content.ID)
 		saveError = err
 	}
 
@@ -168,7 +161,7 @@ func (content *Content) IncludeChildren() *Content {
 	var foundContent *Content
 
 	contentRows, queryErr := content.model.db.DB.Query(`select id, title, summary, body, slug, template,
-	parent, author, added, edited from Content where parent = ?`, content.ID)
+	parent, author, added, modified from Content where parent = ?`, content.ID)
 
 	if queryErr == nil {
 		defer contentRows.Close()
@@ -187,6 +180,12 @@ func (content *Content) IncludeChildren() *Content {
 	}
 
 	return content
+}
+
+// UpdateTitle sets a new value for the Title property while also applying any required business logic.
+func (content *Content) UpdateTitle(title string) {
+	content.Title = title
+	content.Slug = MakeSlug(title)
 }
 
 // MakeSlug creates a URL-safe version of a string, usually the Title of a Content.

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"bitbucket.org/adamcrossland/mtemplate"
+	"github.com/adamcrossland/grog/mtemplate"
 	"github.com/gorilla/mux"
 )
 
@@ -39,7 +39,8 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 		case "text/css", "text/html", "text/plain", "text/javascript":
 			if asset.Rendered {
 				parsedTemplate := mtemplate.MustParse(string(asset.Content), nil)
-				parsedTemplate.Execute(w, nil)
+				tdata := mtemplate.NewTemplateData(w, r, loadedNamedQueries, nil)
+				parsedTemplate.Execute(w, tdata)
 			} else {
 				fmt.Fprintf(w, "%s", string(asset.Content))
 			}
@@ -98,7 +99,7 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 		asset.Write(decodedContent)
 		assetSaveErr := asset.Save()
 		if assetSaveErr != nil {
-			log.Println("error saving asset: %v", assetSaveErr)
+			log.Printf("error saving asset: %v\n", assetSaveErr)
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "error saving content; content not added")
 		}

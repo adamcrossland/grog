@@ -9,13 +9,14 @@ import (
 
 	"github.com/adamcrossland/grog/migrations"
 
-	"bitbucket.org/adamcrossland/mtemplate"
 	"github.com/adamcrossland/grog/manageddb"
-	"github.com/adamcrossland/grog/models"
+	model "github.com/adamcrossland/grog/models"
+	"github.com/adamcrossland/grog/mtemplate"
 	"github.com/gorilla/mux"
 )
 
 var grog *model.GrogModel
+var loadedNamedQueries map[string]model.NamedQueryFunc
 
 func main() {
 	argsWithoutProg := os.Args[1:]
@@ -35,13 +36,20 @@ func main() {
 	db := manageddb.NewManagedDB(dbFilename, "sqlite3", migrations.DatabaseMigrations, false)
 	grog = model.NewModel(db)
 
+	// Load namedqueries
+	loadedNamedQueries = grog.LoadNamedQueries()
+
 	// Set up templating engine to read files from the database
 	mtemplate.TemplateSourceReader = dbFileReader
+
+	mtemplate.CustomFormatters = mtemplate.FormatterMap{
+		"shortdate": ShortDateFormatter,
+	}
 
 	// Set up request routing
 	r := mux.NewRouter()
 
-	r.HandleFunc("/content/{id:[a-zA-z0-9/-_\\.]+}", contentController)
+	r.HandleFunc("/content/{id:[a-zA-z0-9/\\-_\\.]+}", contentController)
 	r.HandleFunc("/content", contentController)
 	r.HandleFunc("/asset/{id:[a-zA-z0-9/-_\\.]+}", assetController)
 	r.HandleFunc("/asset", assetController)
