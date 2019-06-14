@@ -66,6 +66,57 @@ func (model *GrogModel) GetAsset(name string) (*Asset, error) {
 	return foundAsset, err
 }
 
+// All loads all Assets from the database
+func (model *GrogModel) AllAssets() ([]*Asset, error) {
+	var foundAssets []*Asset
+
+	rows, rowsErr := model.db.DB.Query(`select name, mimeType, content, serve_external, rendered,
+		added, modified from Assets`)
+	if rowsErr != nil {
+		return nil, fmt.Errorf("error loading all assets: %v", rowsErr)
+	}
+
+	defer rows.Close()
+
+	var (
+		name          string
+		mimeType      string
+		content       = make([]byte, 0)
+		serveExternal int64
+		rendered      int64
+		added         int64
+		modified      int64
+	)
+
+	for rows.Next() {
+		if rows.Scan(&name, &mimeType, &content, &serveExternal, &rendered, &added, &modified) != sql.ErrNoRows {
+			foundAsset := model.NewAsset(name, mimeType)
+			foundAsset.Content = content
+			if serveExternal == 1 {
+				foundAsset.ServeExternal = true
+			} else {
+				foundAsset.ServeExternal = false
+			}
+
+			if rendered == 1 {
+				foundAsset.Rendered = true
+			} else {
+				foundAsset.Rendered = false
+			}
+
+			foundAsset.Added.Set(time.Unix(added, 0))
+			foundAsset.Modified.Set(time.Unix(modified, 0))
+
+			if foundAssets == nil {
+				foundAssets = make([]*Asset, 0)
+			}
+			foundAssets = append(foundAssets, foundAsset)
+		}
+	}
+
+	return foundAssets, nil
+}
+
 // Exists checks to see if an asset by this name is already stored in the database
 func (asset Asset) Exists() bool {
 	return asset.model.AssetExists(asset.Name)

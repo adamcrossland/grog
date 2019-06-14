@@ -16,6 +16,11 @@ func init() {
 	grog = getModel()
 }
 
+type BoolProperty struct {
+	Name  string
+	Value bool
+}
+
 func main() {
 	args := os.Args
 
@@ -26,7 +31,7 @@ func main() {
 
 	switch strings.ToLower(args[1]) {
 	case "asset":
-		if len(args) >= 4 {
+		if len(args) >= 3 {
 			switch strings.ToLower(args[2]) {
 			case "add":
 				var assetName string
@@ -73,6 +78,41 @@ func main() {
 				} else {
 					helpAssetCmd()
 				}
+			case "set":
+				props := make([]BoolProperty, 0, 2)
+				assetName := ""
+
+				for _, paramVal := range args[3:] {
+					if paramVal[0] == '-' || paramVal[0] == '+' {
+						switch strings.ToLower(paramVal) {
+						case "-ext":
+							props = append(props, BoolProperty{Name: "external", Value: false})
+						case "+ext":
+							props = append(props, BoolProperty{Name: "external", Value: true})
+						case "-render":
+							props = append(props, BoolProperty{Name: "render", Value: false})
+						case "+render":
+							props = append(props, BoolProperty{Name: "render", Value: true})
+						default:
+							fmt.Printf("flag %s not understood\n", paramVal)
+							helpAssetCmd()
+							os.Exit(-1)
+						}
+					} else {
+						// If not a flag, must be the filename to set
+						assetName = paramVal
+					}
+				}
+
+				if len(assetName) == 0 {
+					fmt.Printf("must provide name of asset to set values on\n")
+					helpAssetCmd()
+					os.Exit(-1)
+				}
+
+				setAssetProps(assetName, props)
+			case "ls":
+				listAssets()
 			default:
 				fmt.Printf("asset sub-command %s not understood\n", args[2])
 				helpAssetCmd()
@@ -134,7 +174,9 @@ func help() {
 }
 
 func helpAssetCmd() {
-	fmt.Printf("\tgrogcmd asset add [-ext] <file|directory>\n\t              mv <from> <to>\n")
+	fmt.Printf("\tgrogcmd asset add [-ext] <file|directory>\n")
+	fmt.Printf("\t              mv <from> <to>\n")
+	fmt.Printf("\t              set [+-ext] [+-render] <file|directory>\n")
 }
 
 func helpUserCmd() {

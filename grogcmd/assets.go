@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func loadAsset(rootdir string, asset string, forExternal bool) {
@@ -60,5 +61,58 @@ func walkLoader(forExternal bool) filepath.WalkFunc {
 		}
 
 		return nil
+	}
+}
+
+func setAssetProps(assetname string, props []BoolProperty) {
+	grog = getModel()
+
+	if grog.AssetExists(assetname) {
+		existingAsset, existsErr := grog.GetAsset(assetname)
+		if existsErr == nil {
+			for _, prop := range props {
+				switch prop.Name {
+				case "external":
+					existingAsset.ServeExternal = prop.Value
+				case "render":
+					existingAsset.Rendered = prop.Value
+				}
+			}
+
+			existingAsset.Save()
+		} else {
+			log.Printf("error accessing asset %s: %v", assetname, existsErr)
+		}
+	} else {
+		log.Printf("asset %s is not in the database\n", assetname)
+	}
+
+}
+
+func listAssets() {
+	grog = getModel()
+
+	allAssets, err := grog.AllAssets()
+	if err != nil {
+		fmt.Printf("error loading assets: %v", err)
+		return
+	}
+
+	for _, eachAsset := range allAssets {
+		fmt.Printf("%s\t%s\t", eachAsset.Name, eachAsset.MimeType)
+		if eachAsset.ServeExternal {
+			fmt.Printf("+ext,")
+		} else {
+			fmt.Printf("-ext,")
+		}
+
+		if eachAsset.Rendered {
+			fmt.Printf("+render\t")
+		} else {
+			fmt.Printf("-render\t")
+		}
+
+		fmt.Printf("%v\t%v\n", eachAsset.Added.Time.Format(time.UnixDate),
+			eachAsset.Modified.Time.Format(time.UnixDate))
 	}
 }
