@@ -51,8 +51,10 @@ func main() {
 
 	r.HandleFunc("/content/{id:[a-zA-z0-9/\\-_\\.]+}", contentController)
 	r.HandleFunc("/content", contentController)
-	r.HandleFunc("/asset/{id:[a-zA-z0-9/\\-_\\.]+}", assetController)
+	r.HandleFunc("/asset/{id:[a-zA-Z0-9/\\-_\\.]+}", assetController)
 	r.HandleFunc("/asset", assetController)
+	r.HandleFunc("/{id:[a-zA-Z0-9/\\-_\\.]+}", assetController)
+	r.HandleFunc("/", assetController)
 	http.Handle("/", r)
 
 	servingAddress := os.Getenv("GROG_SERVER_ADDRESS")
