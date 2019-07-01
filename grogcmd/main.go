@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/adamcrossland/grog/manageddb"
@@ -43,7 +44,7 @@ func main() {
 						loadForExternal = true
 					default:
 						fmt.Printf("flag %s not understood\n", args[3])
-						helpAssetCmd()
+						helpAssetCmd(false)
 						os.Exit(-1)
 					}
 					assetName = args[4]
@@ -76,7 +77,7 @@ func main() {
 						os.Exit(-1)
 					}
 				} else {
-					helpAssetCmd()
+					helpAssetCmd(false)
 				}
 			case "set":
 				props := make([]BoolProperty, 0, 2)
@@ -95,7 +96,7 @@ func main() {
 							props = append(props, BoolProperty{Name: "render", Value: true})
 						default:
 							fmt.Printf("flag %s not understood\n", paramVal)
-							helpAssetCmd()
+							helpAssetCmd(false)
 							os.Exit(-1)
 						}
 					} else {
@@ -106,7 +107,7 @@ func main() {
 
 				if len(assetName) == 0 {
 					fmt.Printf("must provide name of asset to set values on\n")
-					helpAssetCmd()
+					helpAssetCmd(false)
 					os.Exit(-1)
 				}
 
@@ -115,36 +116,62 @@ func main() {
 				listAssets()
 			default:
 				fmt.Printf("asset sub-command %s not understood\n", args[2])
-				helpAssetCmd()
+				helpAssetCmd(false)
 			}
 		} else {
-			helpAssetCmd()
+			helpAssetCmd(false)
 			os.Exit(-1)
 		}
 	case "user":
-		if len(args) >= 5 {
+		if len(args) >= 4 {
 			switch strings.ToLower(args[2]) {
 			case "add":
-				username := args[3]
-				emailAddress := args[4]
+				if len(args) == 5 {
+					username := args[3]
+					emailAddress := args[4]
 
-				fmt.Printf("Adding user (%s) with email address (%s)\n", username, emailAddress)
+					fmt.Printf("Adding user (%s) with email address (%s)\n", username, emailAddress)
 
-				grog := getModel()
-				newUser := grog.NewUser(emailAddress, username)
-				newUserErr := newUser.Save()
-				if newUserErr != nil {
-					fmt.Printf("error adding new user: %v\n", newUserErr)
+					grog := getModel()
+					newUser := grog.NewUser(emailAddress, username)
+					newUserErr := newUser.Save()
+					if newUserErr != nil {
+						fmt.Printf("error adding new user: %v\n", newUserErr)
+					} else {
+						fmt.Printf("user added\n")
+					}
 				} else {
-					fmt.Printf("user added\n")
+					helpUserCmd(false)
+					os.Exit(-1)
 				}
+			case "rm":
+				if len(args) == 4 {
+					userID := args[3]
+					userIDInt, convErr := strconv.ParseInt(userID, 10, 64)
+					if convErr != nil {
+						fmt.Printf("userid parameter must be convertible to an integer\n")
+						helpUserCmd(false)
+						os.Exit(-1)
+					}
 
+					grog := getModel()
+					delErr := grog.DeleteUser(userIDInt)
+					if delErr != nil {
+						fmt.Printf("error deleting user %d: %v\n", userIDInt, delErr)
+						os.Exit(-1)
+					}
+
+					fmt.Printf("user %d deleted\n", userIDInt)
+				} else {
+					helpUserCmd(false)
+					os.Exit(-1)
+				}
 			default:
 				fmt.Printf("user sub-command %s not understood\n", args[2])
-				helpUserCmd()
+				helpUserCmd(false)
 			}
 		} else {
-			helpUserCmd()
+			helpUserCmd(false)
 			os.Exit(-1)
 		}
 	default:
@@ -169,16 +196,24 @@ func getModel() *model.GrogModel {
 
 func help() {
 	fmt.Println("Usage:")
-	helpAssetCmd()
-	helpUserCmd()
+	helpAssetCmd(true)
+	helpUserCmd(true)
 }
 
-func helpAssetCmd() {
+func helpAssetCmd(usageShown bool) {
+	if !usageShown {
+		fmt.Println("Usage:")
+	}
 	fmt.Printf("\tgrogcmd asset add [-ext] <file|directory>\n")
+
 	fmt.Printf("\t              mv <from> <to>\n")
 	fmt.Printf("\t              set [+-ext] [+-render] <file|directory>\n")
 }
 
-func helpUserCmd() {
+func helpUserCmd(usageShown bool) {
+	if !usageShown {
+		fmt.Println("Usage:")
+	}
 	fmt.Printf("\tgrogcmd user add \"name\" \"emailAddress\"\n")
+	fmt.Printf("\t             rm id\n")
 }

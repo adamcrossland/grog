@@ -73,3 +73,10 @@ func (model *GrogModel) GetUser(id int64) (*User, error) {
 
 	return foundUser, err
 }
+
+// Delete removes the user with the given id from the database
+func (model *GrogModel) DeleteUser(id int64) error {
+	_, err := model.db.DB.Exec("delete from users where id=?", id)
+
+	return err
+}
