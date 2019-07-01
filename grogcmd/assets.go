@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func loadAsset(rootdir string, asset string, forExternal bool) {
@@ -98,21 +97,30 @@ func listAssets() {
 		return
 	}
 
-	for _, eachAsset := range allAssets {
-		fmt.Printf("%s\t%s\t", eachAsset.Name, eachAsset.MimeType)
-		if eachAsset.ServeExternal {
-			fmt.Printf("+ext,")
+	columnData := make([][]string, len(allAssets))
+
+	for row := 0; row < len(allAssets); row++ {
+		columnData[row] = make([]string, 6)
+		columnData[row][0] = allAssets[row].Name
+		columnData[row][1] = allAssets[row].MimeType
+
+		if allAssets[row].ServeExternal {
+			columnData[row][2] = "+ext"
 		} else {
-			fmt.Printf("-ext,")
+			columnData[row][2] = "-ext"
 		}
 
-		if eachAsset.Rendered {
-			fmt.Printf("+render\t")
+		if allAssets[row].Rendered {
+			columnData[row][3] = "+rnd"
 		} else {
-			fmt.Printf("-render\t")
+			columnData[row][3] = "-rnd"
 		}
 
-		fmt.Printf("%v\t%v\n", eachAsset.Added.Time.Format(time.UnixDate),
-			eachAsset.Modified.Time.Format(time.UnixDate))
+		columnData[row][4] = fmt.Sprintf("%d %d %d", allAssets[row].Added.Val().Month(),
+			allAssets[row].Added.Val().Day(), allAssets[row].Added.Val().Year())
+		columnData[row][5] = fmt.Sprintf("%d %d %d", allAssets[row].Modified.Val().Month(),
+			allAssets[row].Modified.Val().Day(), allAssets[row].Modified.Val().Year())
 	}
+
+	tabularOutput(columnData)
 }
