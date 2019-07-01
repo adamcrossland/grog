@@ -123,7 +123,7 @@ func main() {
 			os.Exit(-1)
 		}
 	case "user":
-		if len(args) >= 4 {
+		if len(args) >= 3 {
 			switch strings.ToLower(args[2]) {
 			case "add":
 				if len(args) == 5 {
@@ -166,6 +166,8 @@ func main() {
 					helpUserCmd(false)
 					os.Exit(-1)
 				}
+			case "ls":
+				listUsers()
 			default:
 				fmt.Printf("user sub-command %s not understood\n", args[2])
 				helpUserCmd(false)
@@ -216,4 +218,5 @@ func helpUserCmd(usageShown bool) {
 	}
 	fmt.Printf("\tgrogcmd user add \"name\" \"emailAddress\"\n")
 	fmt.Printf("\t             rm id\n")
+	fmt.Printf("\t             ls\n")
 }
