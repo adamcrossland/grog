@@ -210,6 +210,7 @@ func helpAssetCmd(usageShown bool) {
 
 	fmt.Printf("\t              mv <from> <to>\n")
 	fmt.Printf("\t              set [+-ext] [+-render] <file|directory>\n")
+	fmt.Printf("\t              ls\n")
 }
 
 func helpUserCmd(usageShown bool) {
