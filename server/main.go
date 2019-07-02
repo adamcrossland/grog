@@ -44,6 +44,7 @@ func main() {
 
 	mtemplate.CustomFormatters = mtemplate.FormatterMap{
 		"shortdate": ShortDateFormatter,
+		"trunc":     TruncFormatter,
 	}
 
 	// Set up request routing
