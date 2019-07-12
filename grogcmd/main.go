@@ -17,7 +17,7 @@ func init() {
 	grog = getModel()
 }
 
-type BoolProperty struct {
+type boolProperty struct {
 	Name  string
 	Value bool
 }
@@ -80,20 +80,20 @@ func main() {
 					helpAssetCmd(false)
 				}
 			case "set":
-				props := make([]BoolProperty, 0, 2)
+				props := make([]boolProperty, 0, 2)
 				assetName := ""
 
 				for _, paramVal := range args[3:] {
 					if paramVal[0] == '-' || paramVal[0] == '+' {
 						switch strings.ToLower(paramVal) {
 						case "-ext":
-							props = append(props, BoolProperty{Name: "external", Value: false})
+							props = append(props, boolProperty{Name: "external", Value: false})
 						case "+ext":
-							props = append(props, BoolProperty{Name: "external", Value: true})
+							props = append(props, boolProperty{Name: "external", Value: true})
 						case "-render":
-							props = append(props, BoolProperty{Name: "render", Value: false})
+							props = append(props, boolProperty{Name: "render", Value: false})
 						case "+render":
-							props = append(props, BoolProperty{Name: "render", Value: true})
+							props = append(props, boolProperty{Name: "render", Value: true})
 						default:
 							fmt.Printf("flag %s not understood\n", paramVal)
 							helpAssetCmd(false)
