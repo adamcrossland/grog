@@ -17,11 +17,6 @@ func init() {
 	grog = getModel()
 }
 
-type boolProperty struct {
-	Name  string
-	Value bool
-}
-
 func main() {
 	args := os.Args
 

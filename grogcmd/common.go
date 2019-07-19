@@ -34,3 +34,8 @@ func tabularOutput(data [][]string) {
 		}
 	}
 }
+
+type boolProperty struct {
+	Name  string
+	Value bool
+}

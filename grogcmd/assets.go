@@ -63,7 +63,7 @@ func walkLoader(forExternal bool) filepath.WalkFunc {
 	}
 }
 
-func setAssetProps(assetname string, props []BoolProperty) {
+func setAssetProps(assetname string, props []boolProperty) {
 	grog = getModel()
 
 	if grog.AssetExists(assetname) {
