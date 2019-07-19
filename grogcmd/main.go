@@ -176,6 +176,13 @@ func main() {
 			helpUserCmd(false)
 			os.Exit(-1)
 		}
+	case "content":
+		switch strings.ToLower(args[2]) {
+		case "ls":
+			listContent()
+		default:
+			helpContentCmd(false)
+		}
 	default:
 		help()
 	}
@@ -220,4 +227,11 @@ func helpUserCmd(usageShown bool) {
 	fmt.Printf("\tgrogcmd user add \"name\" \"emailAddress\"\n")
 	fmt.Printf("\t             rm id\n")
 	fmt.Printf("\t             ls\n")
+}
+
+func helpContentCmd(usageShown bool) {
+	if !usageShown {
+		fmt.Println("Usage:")
+	}
+	fmt.Printf("\tgrogcmd content ls\n")
 }
