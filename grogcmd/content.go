@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
 
 	model "github.com/adamcrossland/grog/models"
 )
@@ -44,6 +46,9 @@ func listContent() {
 		contentRow := allContent[row]
 		columnData[row+1] = make([]string, 10)
 
+		// Make sure that the part of the Body that we show does not have CRLFs in it
+		contentRow.Body = strings.Replace(contentRow.Body, "\n", "\\n", -1)
+
 		columnData[row+1][0] = fmt.Sprintf("%d", contentRow.ID)
 		columnData[row+1][1] = fmt.Sprintf("%.10s", contentRow.Title)
 		columnData[row+1][2] = fmt.Sprintf("%.10s", contentRow.Summary)
@@ -60,4 +65,36 @@ func listContent() {
 	}
 
 	tabularOutput(columnData)
+}
+
+func addContent(source io.Reader) {
+	fmt.Print("Title: ")
+	title := strings.TrimSuffix(readStringToEOL(source), "\n")
+
+	fmt.Print("Summary: ")
+	summary := strings.TrimSuffix(readStringToEOL(source), "\n")
+
+	fmt.Println("Body: (__EOF__ to finish)")
+	body := strings.TrimSuffix(readDocument(source, "__EOF__"), "\n")
+
+	fmt.Print("Template: ")
+	template := strings.TrimSuffix(readStringToEOL(source), "\n")
+
+	fmt.Print("Parent ID: ")
+	parentID, parentIDOK := readIntToEOL(source)
+
+	fmt.Printf("Author ID: ")
+	authorID, authorIDOK := readIntToEOL(source)
+
+	newContent := grog.NewContent(title, summary, body, "", template)
+	if parentIDOK {
+		newContent.Parent = parentID
+	}
+	if authorIDOK {
+		newContent.Author = authorID
+	}
+
+	newContent.Save()
+
+	fmt.Printf("Added new content with id %v\n", newContent.ID)
 }

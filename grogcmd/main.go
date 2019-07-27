@@ -175,6 +175,10 @@ func main() {
 		switch strings.ToLower(args[2]) {
 		case "ls":
 			listContent()
+		case "add":
+			addContent(os.Stdin)
+		case "set":
+
 		default:
 			helpContentCmd(false)
 		}
@@ -201,6 +205,7 @@ func getModel() *model.GrogModel {
 func help() {
 	fmt.Println("Usage:")
 	helpAssetCmd(true)
+	helpContentCmd(true)
 	helpUserCmd(true)
 }
 
@@ -229,4 +234,6 @@ func helpContentCmd(usageShown bool) {
 		fmt.Println("Usage:")
 	}
 	fmt.Printf("\tgrogcmd content ls\n")
+	fmt.Printf("\t        content add")
+	fmt.Printf("\t        content set contentid [template=templatename] [parent=parentid] [author=authorid]")
 }
