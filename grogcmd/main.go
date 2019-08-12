@@ -174,7 +174,16 @@ func main() {
 	case "content":
 		switch strings.ToLower(args[2]) {
 		case "ls":
-			listContent()
+			longList := false
+			if len(args) > 3 {
+				for _, lsOpt := range args[3:] {
+					if lsOpt == "-l" {
+						longList = true
+					}
+				}
+			}
+
+			listContent(longList)
 		case "add":
 			addContent(os.Stdin)
 		case "set":
@@ -218,6 +227,7 @@ func helpAssetCmd(usageShown bool) {
 	fmt.Printf("\t              mv <from> <to>\n")
 	fmt.Printf("\t              set [+-ext] [+-render] <file|directory>\n")
 	fmt.Printf("\t              ls\n")
+	fmt.Println()
 }
 
 func helpUserCmd(usageShown bool) {
@@ -227,13 +237,15 @@ func helpUserCmd(usageShown bool) {
 	fmt.Printf("\tgrogcmd user add \"name\" \"emailAddress\"\n")
 	fmt.Printf("\t             rm id\n")
 	fmt.Printf("\t             ls\n")
+	fmt.Println()
 }
 
 func helpContentCmd(usageShown bool) {
 	if !usageShown {
 		fmt.Println("Usage:")
 	}
-	fmt.Printf("\tgrogcmd content ls\n")
-	fmt.Printf("\t        content add")
-	fmt.Printf("\t        content set contentid [template=templatename] [parent=parentid] [author=authorid]")
+	fmt.Printf("\tgrogcmd content ls -l\n")
+	fmt.Printf("\t        content add\n")
+	fmt.Printf("\t        content set contentid [template=templatename] [parent=parentid] [author=authorid]\n")
+	fmt.Println()
 }

@@ -14,7 +14,11 @@ func tabularOutput(data [][]string) {
 		for row := 0; row < len(data); row++ {
 			for col := 0; col < columnCount; col++ {
 				if len(data[row][col]) > columnWidths[col] {
-					columnWidths[col] = len(data[row][col])
+					if len(data[row][col]) > 50 {
+						columnWidths[col] = 50
+					} else {
+						columnWidths[col] = len(data[row][col])
+					}
 				}
 			}
 		}
