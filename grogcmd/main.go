@@ -109,6 +109,27 @@ func main() {
 				setAssetProps(assetName, props)
 			case "ls":
 				listAssets()
+			case "update":
+				if len(args) < 4 {
+					fmt.Printf("asset update: too few parameters\n")
+					helpAssetCmd(false)
+					os.Exit(-1)
+				}
+
+				assetName := args[3]
+				source := os.Stdin
+
+				if len(args) >= 5 {
+					// Get filename for updated data from command line
+					var fileErr error
+					source, fileErr = os.Open(args[4])
+					if fileErr != nil {
+						fmt.Printf("error opening file %s: %v\n", assetName, fileErr)
+						os.Exit(-1)
+					}
+				}
+
+				updateAsset(assetName, source)
 			default:
 				fmt.Printf("asset sub-command %s not understood\n", args[2])
 				helpAssetCmd(false)
@@ -227,6 +248,7 @@ func helpAssetCmd(usageShown bool) {
 	fmt.Printf("\t              mv <from> <to>\n")
 	fmt.Printf("\t              set [+-ext] [+-render] <file|directory>\n")
 	fmt.Printf("\t              ls\n")
+	fmt.Printf("\t				update <assetname> [filename]\n")
 	fmt.Println()
 }
 

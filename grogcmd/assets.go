@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -123,4 +124,40 @@ func listAssets() {
 	}
 
 	tabularOutput(columnData)
+}
+
+func updateAsset(assetName string, source io.Reader) {
+	grog = getModel()
+
+	assetToUpdate, assetLoadErr := grog.GetAsset(assetName)
+	if assetLoadErr != nil {
+		fmt.Printf("Error loading asset %s: %v\n", assetName, assetLoadErr)
+		os.Exit(-1)
+	}
+	if assetToUpdate == nil {
+		fmt.Printf("Could not find asset named %s\n", assetName)
+		os.Exit(-1)
+	}
+
+	assetData, assetDataErr := ioutil.ReadAll(source)
+	if assetDataErr != nil {
+		fmt.Printf("Error reading asset data: %v\n", assetDataErr)
+		os.Exit(-1)
+	}
+
+	bytesWritten, writeErr := assetToUpdate.Write(assetData)
+	if writeErr != nil {
+		fmt.Printf("Error writing new data to asset: %v\n", writeErr)
+		os.Exit(-1)
+	}
+	if bytesWritten != len(assetData) {
+		fmt.Printf("%d of %d bytes written. Asset %s not saved.\n", bytesWritten, len(assetData), assetName)
+		os.Exit(-1)
+	}
+
+	saveErr := assetToUpdate.Save()
+	if saveErr != nil {
+		fmt.Printf("Error saving asset %s: %v", assetName, saveErr)
+		os.Exit(-1)
+	}
 }
