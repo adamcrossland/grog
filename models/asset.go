@@ -66,7 +66,7 @@ func (model *GrogModel) GetAsset(name string) (*Asset, error) {
 	return foundAsset, err
 }
 
-// All loads all Assets from the database
+// AllAssets loads all Assets from the database
 func (model *GrogModel) AllAssets() ([]*Asset, error) {
 	var foundAssets []*Asset
 
