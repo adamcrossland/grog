@@ -57,7 +57,7 @@ func TestAddPost(t *testing.T) {
 	if savedPost.Added.Unix() != newPost.Added.Unix() {
 		t.Fatalf("savedPost and newPost had different Added values (%d vs %d)", savedPost.Added.Unix(), newPost.Added.Unix())
 	}
-	if savedPost.Edited.Unix() != newPost.Edited.Unix() {
+	if savedPost.Modified.Unix() != newPost.Modified.Unix() {
 		t.Fatal("savedPost and newPost had different Edited values")
 	}
 
