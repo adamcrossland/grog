@@ -140,3 +140,19 @@ func addContent(source io.Reader) {
 
 	fmt.Printf("Added new content with id %v\n", newContent.ID)
 }
+
+func updateContentBody(contentID int64, source *os.File) {
+	content, contentErr := grog.GetContent(contentID)
+	if contentErr != nil {
+		fmt.Printf("error loading content item %d: %v\n", contentID, contentErr)
+		return
+	}
+
+	newBody := strings.TrimSuffix(readStringToEOL(source), "\n")
+	content.Body = newBody
+
+	saveErr := content.Save()
+	if saveErr != nil {
+		fmt.Printf("error saving content item %d: %v\n", contentID, saveErr)
+	}
+}

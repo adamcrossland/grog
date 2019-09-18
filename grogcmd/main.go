@@ -207,8 +207,34 @@ func main() {
 			listContent(longList)
 		case "add":
 			addContent(os.Stdin)
-		case "set":
+		case "update":
+			if len(args) < 4 {
+				fmt.Printf("content update: too few parameters\n")
+				helpContentCmd(false)
+				os.Exit(-1)
+			}
 
+			contentID := args[3]
+			source := os.Stdin
+
+			if len(args) >= 5 {
+				// Get filename for updated data from command line
+				var fileErr error
+				source, fileErr = os.Open(args[4])
+				if fileErr != nil {
+					fmt.Printf("error opening file %s: %v\n", args[4], fileErr)
+					os.Exit(-1)
+				}
+			}
+
+			contentIDInt, convErr := strconv.ParseInt(contentID, 10, 64)
+			if convErr != nil {
+				fmt.Printf("contentid must be convertible to na integer\n")
+				helpContentCmd(false)
+				os.Exit(-1)
+			}
+
+			updateContentBody(contentIDInt, source)
 		default:
 			helpContentCmd(false)
 		}
@@ -244,7 +270,6 @@ func helpAssetCmd(usageShown bool) {
 		fmt.Println("Usage:")
 	}
 	fmt.Printf("\tgrogcmd asset add [-ext] <file|directory>\n")
-
 	fmt.Printf("\t              mv <from> <to>\n")
 	fmt.Printf("\t              set [+-ext] [+-render] <file|directory>\n")
 	fmt.Printf("\t              ls\n")
@@ -267,7 +292,8 @@ func helpContentCmd(usageShown bool) {
 		fmt.Println("Usage:")
 	}
 	fmt.Printf("\tgrogcmd content ls -l\n")
-	fmt.Printf("\t        content add\n")
-	fmt.Printf("\t        content set contentid [template=templatename] [parent=parentid] [author=authorid]\n")
+	fmt.Printf("\t                add\n")
+	fmt.Printf("\t                set contentid [template=templatename] [parent=parentid] [author=authorid]\n")
+	fmt.Printf("\t                update contentid [filename]\n")
 	fmt.Println()
 }
