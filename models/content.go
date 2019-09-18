@@ -257,3 +257,18 @@ func (model *GrogModel) AllContents() ([]*Content, error) {
 
 	return foundContents, nil
 }
+
+// Delete removes the given content from the database
+func (content Content) Delete() error {
+	res, err := content.model.db.DB.Exec("delete from Content where id = ?", content.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsDeleted, rowsDeletedErr := res.RowsAffected()
+	if rowsDeletedErr == nil && rowsDeleted != 1 {
+		return fmt.Errorf("Content.Delete should delete exactly 1 row. Instead, returned %d", rowsDeleted)
+	}
+
+	return nil
+}

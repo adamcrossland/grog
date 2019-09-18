@@ -156,3 +156,17 @@ func updateContentBody(contentID int64, source *os.File) {
 		fmt.Printf("error saving content item %d: %v\n", contentID, saveErr)
 	}
 }
+
+func deleteContent(contentID int64) {
+	content, contentErr := grog.GetContent(contentID)
+	if contentErr != nil {
+		fmt.Printf("error loading content item %d: %v\n", contentID, contentErr)
+		return
+	}
+
+	delErr := content.Delete()
+	if delErr != nil {
+		fmt.Printf("error deleting content item %d: %v\n", contentID, delErr)
+		return
+	}
+}

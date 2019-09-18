@@ -229,12 +229,28 @@ func main() {
 
 			contentIDInt, convErr := strconv.ParseInt(contentID, 10, 64)
 			if convErr != nil {
-				fmt.Printf("contentid must be convertible to na integer\n")
+				fmt.Printf("contentid must be convertible to an integer\n")
 				helpContentCmd(false)
 				os.Exit(-1)
 			}
 
 			updateContentBody(contentIDInt, source)
+		case "rm":
+			if len(args) < 3 {
+				fmt.Printf("content rm: too few parameters\n")
+				helpContentCmd(false)
+				os.Exit(-1)
+			} 
+
+			contentID := args[3]
+			contentIDInt, convErr := strconv.ParseInt(contentID, 10, 64)
+			if convErr != nil {
+				fmt.Printf("contentid must be convertible to an integer\n")
+				helpContentCmd(false)
+				os.Exit(-1)
+			}
+
+			deleteContent(contentIDInt)
 		default:
 			helpContentCmd(false)
 		}
@@ -295,5 +311,6 @@ func helpContentCmd(usageShown bool) {
 	fmt.Printf("\t                add\n")
 	fmt.Printf("\t                set contentid [template=templatename] [parent=parentid] [author=authorid]\n")
 	fmt.Printf("\t                update contentid [filename]\n")
+	fmt.Printf("\t                rm contentid\n")
 	fmt.Println()
 }
