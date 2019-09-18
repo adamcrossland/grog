@@ -18,6 +18,10 @@ func assetController(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		assetID := vars["id"]
 
+		if assetID == "" {
+			assetID = "index"
+		}
+
 		asset, assetErr := grog.GetAsset(assetID)
 		if assetErr != nil {
 			log.Printf("Error retrieving asset(%s): %v", assetID, assetErr)

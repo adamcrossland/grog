@@ -81,7 +81,7 @@ func migration2down(db *sql.DB) error {
 		return err
 	}
 
-	_, err = db.Exec(`drop index slugindex on content`)
+	_, err = db.Exec(`drop index slugindex`)
 	if err != nil {
 		return err
 	}

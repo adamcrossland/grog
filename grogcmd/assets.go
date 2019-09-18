@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -60,5 +61,103 @@ func walkLoader(forExternal bool) filepath.WalkFunc {
 		}
 
 		return nil
+	}
+}
+
+func setAssetProps(assetname string, props []boolProperty) {
+	grog = getModel()
+
+	if grog.AssetExists(assetname) {
+		existingAsset, existsErr := grog.GetAsset(assetname)
+		if existsErr == nil {
+			for _, prop := range props {
+				switch prop.Name {
+				case "external":
+					existingAsset.ServeExternal = prop.Value
+				case "render":
+					existingAsset.Rendered = prop.Value
+				}
+			}
+
+			existingAsset.Save()
+		} else {
+			log.Printf("error accessing asset %s: %v", assetname, existsErr)
+		}
+	} else {
+		log.Printf("asset %s is not in the database\n", assetname)
+	}
+
+}
+
+func listAssets() {
+	grog = getModel()
+
+	allAssets, err := grog.AllAssets()
+	if err != nil {
+		fmt.Printf("error loading assets: %v", err)
+		return
+	}
+
+	columnData := make([][]string, len(allAssets))
+
+	for row := 0; row < len(allAssets); row++ {
+		columnData[row] = make([]string, 6)
+		columnData[row][0] = allAssets[row].Name
+		columnData[row][1] = allAssets[row].MimeType
+
+		if allAssets[row].ServeExternal {
+			columnData[row][2] = "+ext"
+		} else {
+			columnData[row][2] = "-ext"
+		}
+
+		if allAssets[row].Rendered {
+			columnData[row][3] = "+rnd"
+		} else {
+			columnData[row][3] = "-rnd"
+		}
+
+		columnData[row][4] = fmt.Sprintf("%d %d %d", allAssets[row].Added.Val().Month(),
+			allAssets[row].Added.Val().Day(), allAssets[row].Added.Val().Year())
+		columnData[row][5] = fmt.Sprintf("%d %d %d", allAssets[row].Modified.Val().Month(),
+			allAssets[row].Modified.Val().Day(), allAssets[row].Modified.Val().Year())
+	}
+
+	tabularOutput(columnData)
+}
+
+func updateAsset(assetName string, source io.Reader) {
+	grog = getModel()
+
+	assetToUpdate, assetLoadErr := grog.GetAsset(assetName)
+	if assetLoadErr != nil {
+		fmt.Printf("Error loading asset %s: %v\n", assetName, assetLoadErr)
+		os.Exit(-1)
+	}
+	if assetToUpdate == nil {
+		fmt.Printf("Could not find asset named %s\n", assetName)
+		os.Exit(-1)
+	}
+
+	assetData, assetDataErr := ioutil.ReadAll(source)
+	if assetDataErr != nil {
+		fmt.Printf("Error reading asset data: %v\n", assetDataErr)
+		os.Exit(-1)
+	}
+
+	bytesWritten, writeErr := assetToUpdate.Write(assetData)
+	if writeErr != nil {
+		fmt.Printf("Error writing new data to asset: %v\n", writeErr)
+		os.Exit(-1)
+	}
+	if bytesWritten != len(assetData) {
+		fmt.Printf("%d of %d bytes written. Asset %s not saved.\n", bytesWritten, len(assetData), assetName)
+		os.Exit(-1)
+	}
+
+	saveErr := assetToUpdate.Save()
+	if saveErr != nil {
+		fmt.Printf("Error saving asset %s: %v", assetName, saveErr)
+		os.Exit(-1)
 	}
 }

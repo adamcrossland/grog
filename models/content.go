@@ -34,6 +34,8 @@ func (model *GrogModel) NewContent(title string, summary string, body string, sl
 	newContent.Title = title
 	if len(slug) == 0 && len(newContent.Title) > 0 {
 		newContent.Slug = MakeSlug(newContent.Title)
+	} else {
+		newContent.Slug = slug
 	}
 	newContent.Summary = summary
 	newContent.Body = body
@@ -93,16 +95,18 @@ func (model *GrogModel) readContentFromRow(rows *sql.Rows) *Content {
 	var foundContent *Content
 
 	if rows.Next() {
-		var id int64
-		var title string
-		var summary string
-		var body string
-		var slug string
-		var template string
-		var parent int64
-		var author int64
-		var added int64
-		var edited int64
+		var (
+			id       int64
+			title    string
+			summary  string
+			body     string
+			slug     string
+			template string
+			parent   int64
+			author   int64
+			added    int64
+			edited   int64
+		)
 
 		if rows.Scan(&id, &title, &summary, &body, &slug, &template, &parent, &author, &added, &edited) != sql.ErrNoRows {
 			foundContent = model.NewContent(title, summary, body, slug, template)
@@ -208,4 +212,63 @@ func MakeSlug(toSlug string) string {
 	}
 
 	return string(b)
+}
+
+// AllContents loads all Content from the database
+func (model *GrogModel) AllContents() ([]*Content, error) {
+	var foundContents []*Content
+
+	rows, rowsErr := model.db.DB.Query(`select id, title, summary, body, slug, template,
+		parent, author, added, modified from Content`)
+	if rowsErr != nil {
+		return nil, fmt.Errorf("error loading all assets: %v", rowsErr)
+	}
+
+	defer rows.Close()
+
+	var (
+		ID       int64
+		title    string
+		summary  string
+		body     string
+		slug     string
+		template string
+		parent   int64
+		author   int64
+		added    int64
+		modified int64
+	)
+
+	for rows.Next() {
+		if rows.Scan(&ID, &title, &summary, &body, &slug, &template, &parent, &author, &added, &modified) != sql.ErrNoRows {
+			foundContent := model.NewContent(title, summary, body, slug, template)
+			foundContent.ID = ID
+			foundContent.Parent = parent
+			foundContent.Author = author
+			foundContent.Added.Set(time.Unix(added, 0))
+			foundContent.Modified.Set(time.Unix(modified, 0))
+
+			if foundContents == nil {
+				foundContents = make([]*Content, 0)
+			}
+			foundContents = append(foundContents, foundContent)
+		}
+	}
+
+	return foundContents, nil
+}
+
+// Delete removes the given content from the database
+func (content Content) Delete() error {
+	res, err := content.model.db.DB.Exec("delete from Content where id = ?", content.ID)
+	if err != nil {
+		return err
+	}
+
+	rowsDeleted, rowsDeletedErr := res.RowsAffected()
+	if rowsDeletedErr == nil && rowsDeleted != 1 {
+		return fmt.Errorf("Content.Delete should delete exactly 1 row. Instead, returned %d", rowsDeleted)
+	}
+
+	return nil
 }

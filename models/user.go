@@ -73,3 +73,45 @@ func (model *GrogModel) GetUser(id int64) (*User, error) {
 
 	return foundUser, err
 }
+
+// DeleteUser removes the user with the given id from the database
+func (model *GrogModel) DeleteUser(id int64) error {
+	_, err := model.db.DB.Exec("delete from users where id=?", id)
+
+	return err
+}
+
+// AllUsers loads all Users from the database
+func (model *GrogModel) AllUsers() ([]*User, error) {
+	var foundUsers []*User
+
+	rows, rowsErr := model.db.DB.Query(`select id, name, email, added from users`)
+
+	if rowsErr != nil {
+		return nil, fmt.Errorf("error loading all users: %v", rowsErr)
+	}
+
+	defer rows.Close()
+
+	var (
+		id    int64
+		name  string
+		email string
+		added int64
+	)
+
+	for rows.Next() {
+		if rows.Scan(&id, &name, &email, &added) != sql.ErrNoRows {
+			foundUser := model.NewUser(email, name)
+			foundUser.ID = id
+			foundUser.Added.Set(time.Unix(added, 0))
+
+			if foundUsers == nil {
+				foundUsers = make([]*User, 0)
+			}
+			foundUsers = append(foundUsers, foundUser)
+		}
+	}
+
+	return foundUsers, nil
+}

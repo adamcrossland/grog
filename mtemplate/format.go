@@ -170,8 +170,13 @@ func PaginationFormatter(w io.Writer, format string, data *TemplateData, value .
 		totalPages++
 	}
 
-	paginatedData := make([]map[string]string, pageSize)
 	dataOffset := (showPage - 1) * pageSize
+	resultCount := int64(len(realData[dataOffset:]))
+	if resultCount < pageSize {
+		pageSize = resultCount
+	}
+
+	paginatedData := make([]map[string]string, pageSize)
 
 	copy(paginatedData, realData[dataOffset:])
 	data.data[pageKey(key)] = paginatedData
