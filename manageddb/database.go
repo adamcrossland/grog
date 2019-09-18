@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // ManagedDB has all information pertaining to the database that is being managed.
@@ -85,7 +83,6 @@ func (mdb ManagedDB) databaseMigrate(toMigration int) {
 			dbErr = mdb.migrations[mdb.currentMigration].Down(mdb.DB)
 			if dbErr != nil {
 				panic(fmt.Sprintf("db migration %d down failed: %v", mdb.currentMigration, dbErr))
-				mdb.currentMigration++
 			} else {
 				mdb.setCurrentMigration(mdb.currentMigration)
 			}
@@ -97,7 +94,6 @@ func (mdb ManagedDB) databaseMigrate(toMigration int) {
 			dbErr = mdb.migrations[mdb.currentMigration].Up(mdb.DB)
 			if dbErr != nil {
 				panic(fmt.Sprintf("db migration %d up failed: %v", mdb.currentMigration, dbErr))
-				mdb.currentMigration--
 			} else {
 				mdb.setCurrentMigration(mdb.currentMigration)
 			}
@@ -113,12 +109,14 @@ func (mdb ManagedDB) databaseMigrate(toMigration int) {
 	}
 }
 
-type ManagedDBWriteFunc func(db *sql.DB) error
+// WriteFunc is a function signature that should be implemented by any function
+// that performs write operations to the database.
+type WriteFunc func(db *sql.DB) error
 
 // DoWrite executes the provided ManagedDBWriteFunc in a safely
 // single-threaded way. All writes to the underlying DB should happen
 // in this way.
-func (mdb ManagedDB) DoWrite(writeFunc ManagedDBWriteFunc) error {
+func (mdb ManagedDB) DoWrite(writeFunc WriteFunc) error {
 	mdb.dbLock.Lock()
 	writeErr := writeFunc(mdb.DB)
 	mdb.dbLock.Unlock()
