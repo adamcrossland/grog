@@ -8,3 +8,4 @@ server/templates
 server/env.sh
 grogcmd/grogcmd
 .vscode
+*.exe
