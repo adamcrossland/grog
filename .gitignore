@@ -9,3 +9,4 @@ server/env.sh
 grogcmd/grogcmd
 .vscode
 *.exe
+server/grog.dev
