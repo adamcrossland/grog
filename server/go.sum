@@ -1,0 +1,4 @@
+github.com/adamcrossland/grog v0.0.0-20190918185639-89838bfbce50 h1:pRFiKFObY3MHSMFP8jBjibQCaxxd+0x2ex8jG3JOWFI=
+github.com/adamcrossland/grog v0.0.0-20190918185639-89838bfbce50/go.mod h1:xt+fGvipbJ2fj/h0TX9SjZSCsew1efPfEEq9h9NNDO4=
+github.com/gorilla/mux v1.8.0 h1:i40aqfkR1h2SlN9hojwV5ZA91wcXFOvkdNIeFDP5koI=
+github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=

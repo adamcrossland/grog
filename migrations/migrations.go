@@ -11,9 +11,9 @@ var DatabaseMigrations map[int]manageddb.DBMigration
 
 func init() {
 	DatabaseMigrations = map[int]manageddb.DBMigration{
-		1: manageddb.DBMigration{Up: migration1up, Down: migration1down},
-		2: manageddb.DBMigration{Up: migration2up, Down: migration2down},
-		3: manageddb.DBMigration{Up: migration3up, Down: migration3down},
+		1: {Up: migration1up, Down: migration1down},
+		2: {Up: migration2up, Down: migration2down},
+		3: {Up: migration3up, Down: migration3down},
 	}
 }
 
