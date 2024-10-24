@@ -56,6 +56,7 @@ const (
 	tokBlock
 	tokInclude
 	tokModel
+	tokAuth
 )
 
 // FormatterMap is the type describing the mapping from formatter
@@ -64,12 +65,12 @@ type FormatterMap map[string]FormatterFunc
 
 // Built-in formatters.
 var builtins = FormatterMap{
-	"html":    HTMLFormatter,
-	"str":     StringFormatter,
-	"urlsafe": URLFormatter,
-	"int":     IntFormatter,
+	"html":     HTMLFormatter,
+	"str":      StringFormatter,
+	"urlsafe":  URLFormatter,
+	"int":      IntFormatter,
 	"paginate": PaginationFormatter,
-	"":        StringFormatter,
+	"":         StringFormatter,
 }
 
 // The parsed state of a template is a vector of xxxElement structs.
@@ -135,6 +136,10 @@ type includeElement struct {
 type modelElement struct {
 	modelName  string   // The name of the saved query to execute
 	parameters []string // The parameters to be passed to the prepared query
+}
+
+type authElement struct {
+	unauthRedirectTo string
 }
 
 // Template is the type that represents a template definition.
@@ -483,11 +488,18 @@ func (t *Template) analyze(item []byte) (tok int, w []string) {
 		tok = tokInclude
 		return
 	case ".model":
-		 if len(w) < 2 {
-			 t.parseError(".model must include the name of a query to execute")
-		 }
+		if len(w) < 2 {
+			t.parseError(".model must include the name of a query to execute")
+		}
 
-		 tok = tokModel
+		tok = tokModel
+		return
+	case ".auth":
+		if len(w) < 2 {
+			t.parseError(".auth must include a path to which a non-authenticated request is redirected")
+		}
+
+		tok = tokAuth
 		return
 	}
 
@@ -730,6 +742,15 @@ Loop:
 	return s
 }
 
+func (t *Template) parseAuth(words []string, elems *elemlist) {
+	if len(words) == 2 {
+		newAuth := new(authElement)
+		newAuth.unauthRedirectTo = words[1]
+
+		elems.Push(newAuth)
+	}
+}
+
 func (t *Template) parse(elems *elemlist, exitOnEnd bool) {
 	for {
 		item := t.nextItem()
@@ -764,6 +785,8 @@ func (t *Template) parse(elems *elemlist, exitOnEnd bool) {
 			t.parseInclude(w, elems)
 		case tokModel:
 			t.parseModel(w, elems)
+		case tokAuth:
+			t.parseAuth(w, elems)
 		default:
 			t.parseError("internal error: bad directive in parse: %s", item)
 		}
@@ -972,6 +995,13 @@ func (t *Template) executeElement(elems *elemlist, i int, st *state, data *Templ
 	case *modelElement:
 		t.executeModel(elem, st, data)
 		return i + 1
+	case *authElement:
+		if !data.Authenticated {
+			t.executeAuth(elem, st, data)
+			return elems.Len()
+		} else {
+			return i + 1
+		}
 	}
 
 	e := t.elems.At(i)
@@ -1106,7 +1136,7 @@ func (t *Template) executeModel(m *modelElement, st *state, data *TemplateData) 
 	for i, p := range m.parameters {
 		// A parameter can have two parts, the name of a form value that is expected
 		// to come in with the request and a default value if the parameter is missing.
-		// Like this: postId|1 
+		// Like this: postId|1
 		paramParts := strings.Split(p, "=")
 
 		inValue := data.request.FormValue(paramParts[0])
@@ -1128,6 +1158,12 @@ func (t *Template) executeModel(m *modelElement, st *state, data *TemplateData) 
 
 	// TODO:  As above, what is the correct behavior if the attempt to retrieve a named query
 	// fails? Add here later.
+}
+
+func (t *Template) executeAuth(m *authElement, st *state, data *TemplateData) {
+	if !data.Authenticated {
+		data.Redirect(m.unauthRedirectTo, data.CurrentPath())
+	}
 }
 
 // A valid delimiter must contain no white space and be non-empty.

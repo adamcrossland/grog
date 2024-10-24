@@ -8,10 +8,11 @@ import (
 
 // TemplateData comprises all of the information required for processing template rendering
 type TemplateData struct {
-	data         map[string]interface{} // Hold all data passed in for rendering the template
-	response     http.ResponseWriter
-	request      *http.Request
-	NamedQueries map[string]model.NamedQueryFunc
+	data          map[string]interface{} // Hold all data passed in for rendering the template
+	response      http.ResponseWriter
+	request       *http.Request
+	NamedQueries  map[string]model.NamedQueryFunc
+	Authenticated bool
 }
 
 // NewTemplateData returns a new TemplateData object
@@ -24,6 +25,11 @@ func NewTemplateData(wr http.ResponseWriter, r *http.Request, namedQueries map[s
 	newData.data = make(map[string]interface{})
 
 	newData.data["model"] = data
+	newData.data["user"] = r.Context().Value("user")
+	if newData.data["user"] != nil {
+		newData.Authenticated = true
+	}
+
 	newData.NamedQueries = namedQueries
 
 	return newData
@@ -37,4 +43,13 @@ func (data *TemplateData) SetCookie(cookie *http.Cookie) {
 // GetCookie gets a cookie from the request
 func (data *TemplateData) GetCookie(name string) (*http.Cookie, error) {
 	return data.request.Cookie(name)
+}
+
+func (data *TemplateData) Redirect(to string, returnTo string) {
+	data.response.Header().Add("Location", returnTo)
+	http.Redirect(data.response, data.request, to, http.StatusSeeOther)
+}
+
+func (data *TemplateData) CurrentPath() string {
+	return data.request.URL.Path
 }
